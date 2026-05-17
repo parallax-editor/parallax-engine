@@ -1,0 +1,44 @@
+{
+  "name": "parallax-engine",
+  "version": "0.1.0",
+  "description": "Engine de parallax compartido (Vue 3) + contrato de schema site.json. Núcleo del sistema de sitios de Daniela Reyes.",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch --mode library",
+    "build": "vue-tsc -p tsconfig.build.json --emitDeclarationOnly && vite build --mode library",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "dependencies": {
+    "lenis": "^1.1.13",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.0",
+    "typescript": "~5.4.5",
+    "vite": "^5.4.0",
+    "vitest": "^2.0.5",
+    "vue": "^3.4.38",
+    "vue-tsc": "^2.0.29"
+  }
+}
