@@ -8,7 +8,7 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
-        schema: resolve(__dirname, 'src/schema/index.ts'),
+        schema: resolve(__dirname, 'src/schema.ts'),
       },
       formats: ['es'],
     },

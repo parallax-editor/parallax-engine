@@ -1,0 +1,145 @@
+<script setup lang="ts">
+import { ref, provide, onMounted, onUnmounted, computed } from 'vue'
+import type { Site } from '../schema'
+import { useReducedMotion } from '../composables/useReducedMotion'
+import { useErrorHandler } from '../composables/useErrorHandler'
+import ParallaxSection from './ParallaxSection.vue'
+import ErrorOverlay from './ErrorOverlay.vue'
+
+const props = withDefaults(defineProps<{
+  site: Site
+  mode?: 'dev' | 'prod'
+}>(), {
+  mode: import.meta.env.DEV ? 'dev' : 'prod',
+})
+
+// ─── Scroll state ──────────────────────────────────────────────────────────────
+
+const scrollY = ref(0)
+const viewportHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 800)
+let lenis: any = null
+let rafId: number | null = null
+
+provide('parallaxScrollY', scrollY)
+provide('parallaxViewportHeight', viewportHeight)
+
+// ─── Reduced motion ────────────────────────────────────────────────────────────
+
+const reducedMotion = useReducedMotion()
+provide('reducedMotion', reducedMotion)
+
+// ─── Error handler ─────────────────────────────────────────────────────────────
+
+const { errors, reportError, clearErrors } = useErrorHandler(props.mode)
+provide('parallaxErrors', errors)
+provide('parallaxReportError', reportError)
+
+// ─── Theme CSS variables ───────────────────────────────────────────────────────
+
+const themeStyle = computed(() => {
+  const t = props.site.theme
+  if (!t) return {}
+  return {
+    '--color-ink': t.colors.ink,
+    '--color-paper': t.colors.paper,
+    '--color-accent': t.colors.accent,
+    '--font-display': t.typography.display,
+    '--font-body': t.typography.body,
+    color: t.colors.ink,
+    backgroundColor: t.colors.paper,
+    fontFamily: t.typography.body,
+  } as Record<string, string>
+})
+
+// ─── Font injection ────────────────────────────────────────────────────────────
+
+function injectFonts() {
+  if (typeof document === 'undefined') return
+  const fonts = props.site.meta.fonts
+  for (const font of fonts) {
+    if (font.source === 'google') {
+      const existing = document.querySelector(`link[data-parallax-font="${font.family}"]`)
+      if (existing) continue
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font.family)}:wght@300;400;500;600;700&display=swap`
+      link.setAttribute('data-parallax-font', font.family)
+      document.head.appendChild(link)
+    } else if (font.source === 'custom' && font.url) {
+      const existing = document.querySelector(`style[data-parallax-font="${font.family}"]`)
+      if (existing) continue
+      const style = document.createElement('style')
+      style.setAttribute('data-parallax-font', font.family)
+      style.textContent = `@font-face { font-family: '${font.family}'; src: url('${font.url}'); font-display: swap; }`
+      document.head.appendChild(style)
+    }
+  }
+}
+
+// ─── Lenis setup ───────────────────────────────────────────────────────────────
+
+async function initLenis() {
+  try {
+    const Lenis = (await import('lenis')).default
+    lenis = new Lenis()
+
+    lenis.on('scroll', ({ scroll }: { scroll: number }) => {
+      scrollY.value = scroll
+    })
+
+    function raf(time: number) {
+      lenis.raf(time)
+      rafId = requestAnimationFrame(raf)
+    }
+    rafId = requestAnimationFrame(raf)
+  } catch {
+    // Fallback to native scroll if Lenis fails to load
+    const onScroll = () => { scrollY.value = window.scrollY }
+    window.addEventListener('scroll', onScroll, { passive: true })
+  }
+}
+
+function updateViewport() {
+  viewportHeight.value = window.innerHeight
+}
+
+// ─── Lifecycle ─────────────────────────────────────────────────────────────────
+
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  injectFonts()
+  updateViewport()
+  window.addEventListener('resize', updateViewport, { passive: true })
+  initLenis()
+})
+
+onUnmounted(() => {
+  if (rafId) cancelAnimationFrame(rafId)
+  lenis?.destroy()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateViewport)
+  }
+})
+</script>
+
+<template>
+  <div class="parallax-site" :style="themeStyle" :lang="site.meta.lang">
+    <ParallaxSection
+      v-for="(section, i) in site.sections"
+      :key="section.id || i"
+      :section="section"
+    />
+    <ErrorOverlay
+      v-if="mode === 'dev'"
+      @dismiss="clearErrors"
+    />
+  </div>
+</template>
+
+<style scoped>
+.parallax-site {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+</style>
