@@ -6,21 +6,27 @@ import ParallaxLayer from './ParallaxLayer.vue'
 const props = defineProps<{ section: Section }>()
 
 const sectionRef = ref<HTMLElement | null>(null)
+const innerRef = ref<HTMLElement | null>(null)
 const scrollY = inject<Ref<number>>('parallaxScrollY', ref(0))
 const viewportHeight = inject<Ref<number>>('parallaxViewportHeight', ref(800))
 
 const isVisible = ref(false)
 let observer: IntersectionObserver | null = null
 
+const isPinned = computed(() => props.section.scrollBehavior === 'pinned')
+const isSnap = computed(() => props.section.scrollBehavior === 'snap')
+
 onMounted(() => {
-  if (!sectionRef.value) return
+  // Observe the outer wrapper (which has full height for pinned sections)
+  const target = sectionRef.value
+  if (!target) return
   observer = new IntersectionObserver(
     (entries) => {
       isVisible.value = entries[0]?.isIntersecting ?? false
     },
     { rootMargin: '100px' },
   )
-  observer.observe(sectionRef.value)
+  observer.observe(target)
 })
 
 onUnmounted(() => {
@@ -30,9 +36,9 @@ onUnmounted(() => {
 /**
  * Section progress: 0 when section top reaches viewport bottom,
  * 1 when section bottom passes viewport top.
+ * For pinned sections, uses the outer wrapper height for total travel.
  */
 const sectionProgress = computed(() => {
-  // Access scrollY.value to create reactive dependency on scroll changes
   void scrollY.value
   if (!isVisible.value || !sectionRef.value) return 0
   const rect = sectionRef.value.getBoundingClientRect()
@@ -43,11 +49,33 @@ const sectionProgress = computed(() => {
 
 provide('sectionProgress', sectionProgress)
 
+const outerStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (isPinned.value) {
+    // Outer wrapper: full scrollable height
+    style.height = props.section.height
+    style.position = 'relative'
+  }
+  return style
+})
+
 const sectionStyle = computed(() => {
   const style: Record<string, string> = {
     position: 'relative',
     overflow: 'hidden',
-    height: props.section.height,
+  }
+
+  if (isPinned.value) {
+    // Sticky inner: locks to viewport while outer scrolls
+    style.position = 'sticky'
+    style.top = '0'
+    style.height = '100vh'
+  } else {
+    style.height = props.section.height
+  }
+
+  if (isSnap.value) {
+    style.scrollSnapAlign = 'start'
   }
 
   if (props.section.background) {
@@ -68,13 +96,17 @@ const sectionStyle = computed(() => {
 </script>
 
 <template>
-  <section ref="sectionRef" :id="section.id" :style="sectionStyle" class="parallax-section">
-    <ParallaxLayer
-      v-for="(layer, i) in section.layers"
-      :key="layer.id || i"
-      :layer="layer"
-    />
-  </section>
+  <!-- Outer wrapper: only meaningful for pinned (provides scroll height) -->
+  <div ref="sectionRef" :style="outerStyle">
+    <section ref="innerRef" :id="section.id" :style="sectionStyle" class="parallax-section">
+      <ParallaxLayer
+        v-for="(layer, i) in section.layers"
+        :key="layer.id || i"
+        :layer="layer"
+        :layer-index="i"
+      />
+    </section>
+  </div>
 </template>
 
 <style scoped>

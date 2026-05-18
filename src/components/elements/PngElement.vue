@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, inject, type Ref } from 'vue'
 import type { PngElement } from '../../schema'
+import type { DeviceType } from '../../composables/useResponsive'
+import { mergeResponsiveOverrides } from '../../composables/useResponsive'
 import { resolveUnit } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
 
@@ -9,6 +11,9 @@ const props = defineProps<{ element: PngElement }>()
 const elementRef = ref<HTMLElement | null>(null)
 const sectionProgress = inject<Ref<number>>('sectionProgress', ref(0))
 const reducedMotion = inject<Ref<boolean>>('reducedMotion', ref(false))
+const device = inject<Ref<DeviceType>>('parallaxDevice', ref('desktop'))
+
+const el = computed(() => mergeResponsiveOverrides(props.element, device.value))
 
 const { style: animStyle } = useElementAnimations({
   animations: props.element.animations,
@@ -30,31 +35,26 @@ const anchorOffset: Record<string, [string, string]> = {
 }
 
 const positionStyle = computed(() => {
-  const el = props.element
-  const [ox, oy] = anchorOffset[el.anchor] || ['-50%', '-50%']
+  const e = el.value
+  const [ox, oy] = anchorOffset[e.anchor] || ['-50%', '-50%']
   const base: Record<string, string | number> = {
     position: 'absolute',
-    left: resolveUnit(el.position.x),
-    top: resolveUnit(el.position.y),
+    left: resolveUnit(e.position.x),
+    top: resolveUnit(e.position.y),
     transform: `translate(${ox}, ${oy})`,
-    transformOrigin: el.anchor.replace('-', ' '),
+    transformOrigin: (e.anchor || 'center').replace('-', ' '),
   }
-  if (el.size?.width != null) base.width = resolveUnit(el.size.width)
-  if (el.size?.height != null) base.height = resolveUnit(el.size.height)
-  if (el.opacity !== 1) base.opacity = el.opacity
-  if (el.rotation !== 0) {
-    base.transform += ` rotate(${el.rotation}deg)`
-  }
+  if (e.size?.width != null) base.width = resolveUnit(e.size.width)
+  if (e.size?.height != null) base.height = resolveUnit(e.size.height)
+  if (e.opacity !== 1) base.opacity = e.opacity
+  if (e.rotation !== 0) base.transform += ` rotate(${e.rotation}deg)`
   return base
 })
 
 const mergedStyle = computed(() => {
   const pos = { ...positionStyle.value }
   const anim = animStyle.value
-  // Merge transforms: position transform + animation transform
-  if (anim.transform) {
-    pos.transform = `${pos.transform || ''} ${anim.transform}`.trim()
-  }
+  if (anim.transform) pos.transform = `${pos.transform || ''} ${anim.transform}`.trim()
   if (anim.opacity !== undefined) pos.opacity = anim.opacity
   if (anim.filter) pos.filter = anim.filter as string
   if (anim.transition) pos.transition = anim.transition as string
@@ -64,10 +64,10 @@ const mergedStyle = computed(() => {
 
 <template>
   <img
-    v-if="element.visible !== false"
+    v-if="el.visible !== false"
     ref="elementRef"
-    :src="element.src"
-    :alt="element.alt || ''"
+    :src="el.src"
+    :alt="el.alt || ''"
     :style="mergedStyle"
     class="parallax-png-element"
     loading="lazy"

@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { ref, provide, onMounted, onUnmounted, computed } from 'vue'
+import { ref, provide, onMounted, onUnmounted, computed, type Component } from 'vue'
 import type { Site } from '../schema'
 import { useReducedMotion } from '../composables/useReducedMotion'
 import { useErrorHandler } from '../composables/useErrorHandler'
+import { useResponsive } from '../composables/useResponsive'
+import { useQualityTier } from '../composables/useQualityTier'
+import { useMouseTracking } from '../composables/useMouseTracking'
+import { useGyroscope } from '../composables/useGyroscope'
 import ParallaxSection from './ParallaxSection.vue'
 import ErrorOverlay from './ErrorOverlay.vue'
+import GyroscopePrompt from './GyroscopePrompt.vue'
 
 const props = withDefaults(defineProps<{
   site: Site
   mode?: 'dev' | 'prod'
+  components?: Record<string, Component>
 }>(), {
   mode: import.meta.env.DEV ? 'dev' : 'prod',
 })
@@ -23,10 +29,34 @@ let rafId: number | null = null
 provide('parallaxScrollY', scrollY)
 provide('parallaxViewportHeight', viewportHeight)
 
+// ─── Device + responsive ───────────────────────────────────────────────────────
+
+const device = useResponsive()
+provide('parallaxDevice', device)
+
+// ─── Quality tier ──────────────────────────────────────────────────────────────
+
+const qualityTier = useQualityTier(device, props.site.quality)
+provide('parallaxQuality', qualityTier)
+
 // ─── Reduced motion ────────────────────────────────────────────────────────────
 
 const reducedMotion = useReducedMotion()
 provide('reducedMotion', reducedMotion)
+
+// ─── Mouse tracking ───────────────────────────────────────────────────────────
+
+const mouse = useMouseTracking()
+provide('parallaxMouse', mouse)
+
+// ─── Gyroscope ─────────────────────────────────────────────────────────────────
+
+const gyroscope = useGyroscope()
+provide('parallaxGyroscope', gyroscope)
+
+// ─── Component registry ────────────────────────────────────────────────────────
+
+provide('parallaxComponents', computed(() => props.components ?? {}))
 
 // ─── Error handler ─────────────────────────────────────────────────────────────
 
@@ -36,19 +66,27 @@ provide('parallaxReportError', reportError)
 
 // ─── Theme CSS variables ───────────────────────────────────────────────────────
 
+const hasSnap = computed(() =>
+  props.site.sections.some((s) => s.scrollBehavior === 'snap'),
+)
+
 const themeStyle = computed(() => {
   const t = props.site.theme
-  if (!t) return {}
-  return {
-    '--color-ink': t.colors.ink,
-    '--color-paper': t.colors.paper,
-    '--color-accent': t.colors.accent,
-    '--font-display': t.typography.display,
-    '--font-body': t.typography.body,
-    color: t.colors.ink,
-    backgroundColor: t.colors.paper,
-    fontFamily: t.typography.body,
-  } as Record<string, string>
+  const style: Record<string, string> = {}
+  if (t) {
+    style['--color-ink'] = t.colors.ink
+    style['--color-paper'] = t.colors.paper
+    style['--color-accent'] = t.colors.accent
+    style['--font-display'] = t.typography.display
+    style['--font-body'] = t.typography.body
+    style.color = t.colors.ink
+    style.backgroundColor = t.colors.paper
+    style.fontFamily = t.typography.body
+  }
+  if (hasSnap.value) {
+    style.scrollSnapType = 'y mandatory'
+  }
+  return style
 })
 
 // ─── Font injection ────────────────────────────────────────────────────────────
@@ -93,7 +131,6 @@ async function initLenis() {
     }
     rafId = requestAnimationFrame(raf)
   } catch {
-    // Fallback to native scroll if Lenis fails to load
     const onScroll = () => { scrollY.value = window.scrollY }
     window.addEventListener('scroll', onScroll, { passive: true })
   }
@@ -129,6 +166,7 @@ onUnmounted(() => {
       :key="section.id || i"
       :section="section"
     />
+    <GyroscopePrompt />
     <ErrorOverlay
       v-if="mode === 'dev'"
       @dismiss="clearErrors"
