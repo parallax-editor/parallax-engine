@@ -5,6 +5,7 @@ import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
 import { resolveUnit } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
+import ElementLink from './ElementLink.vue'
 
 const props = defineProps<{ element: PngElement }>()
 
@@ -23,7 +24,7 @@ const { style: animStyle } = useElementAnimations({
   elementId: props.element.id,
 })
 
-const isInteractive = computed(() => el.value.interactive)
+const isInteractive = computed(() => el.value.interactive || !!el.value.link)
 
 const anchorOffset: Record<string, [string, string]> = {
   'center': ['-50%', '-50%'],
@@ -67,17 +68,18 @@ const mergedStyle = computed(() => {
 </script>
 
 <template>
-  <img
-    v-if="el.visible !== false"
-    ref="elementRef"
-    :src="el.src"
-    :alt="el.alt || ''"
-    :style="mergedStyle"
-    class="parallax-png-element"
-    :class="{ interactive: isInteractive }"
-    :data-parallax-interactive="isInteractive || undefined"
-    loading="lazy"
-  />
+  <ElementLink v-if="el.visible !== false" :link="el.link">
+    <img
+      ref="elementRef"
+      :src="el.src"
+      :alt="el.alt || ''"
+      :style="mergedStyle"
+      class="parallax-png-element"
+      :class="{ interactive: isInteractive }"
+      :data-parallax-interactive="isInteractive || undefined"
+      loading="lazy"
+    />
+  </ElementLink>
 </template>
 
 <style scoped>

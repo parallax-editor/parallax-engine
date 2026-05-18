@@ -5,6 +5,7 @@ import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
 import { resolveUnit } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
+import ElementLink from './ElementLink.vue'
 
 const props = defineProps<{ element: TextElement }>()
 
@@ -86,35 +87,36 @@ const mergedStyle = computed(() => {
 })
 
 const tag = computed(() => el.value.semanticTag || 'p')
-const isInteractive = computed(() => el.value.interactive)
+const isInteractive = computed(() => el.value.interactive || !!el.value.link)
 </script>
 
 <template>
-  <component
-    v-if="el.visible !== false"
-    :is="tag"
-    ref="elementRef"
-    :style="mergedStyle"
-    class="parallax-text-element"
-    :class="{ interactive: isInteractive }"
-    :data-parallax-interactive="isInteractive || undefined"
-  >
-    <!-- Split text mode -->
-    <template v-if="splitParts">
-      <span
-        v-for="(part, i) in splitParts"
-        :key="i"
-        class="split-part"
-        :style="{
-          display: 'inline-block',
-          animationDelay: `${i * stagger}ms`,
-          whiteSpace: part === ' ' ? 'pre' : undefined,
-        }"
-      >{{ part }}</span>
-    </template>
-    <!-- Normal mode -->
-    <template v-else>{{ el.content }}</template>
-  </component>
+  <ElementLink v-if="el.visible !== false" :link="el.link">
+    <component
+      :is="tag"
+      ref="elementRef"
+      :style="mergedStyle"
+      class="parallax-text-element"
+      :class="{ interactive: isInteractive }"
+      :data-parallax-interactive="isInteractive || undefined"
+    >
+      <!-- Split text mode -->
+      <template v-if="splitParts">
+        <span
+          v-for="(part, i) in splitParts"
+          :key="i"
+          class="split-part"
+          :style="{
+            display: 'inline-block',
+            animationDelay: `${i * stagger}ms`,
+            whiteSpace: part === ' ' ? 'pre' : undefined,
+          }"
+        >{{ part }}</span>
+      </template>
+      <!-- Normal mode -->
+      <template v-else>{{ el.content }}</template>
+    </component>
+  </ElementLink>
 </template>
 
 <style scoped>

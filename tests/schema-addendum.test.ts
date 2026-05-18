@@ -127,6 +127,66 @@ describe('Schema addendum (hover/click/depends, clipPath, split, etc.)', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('validates element with link', () => {
+    const result = validateSite({
+      schemaVersion: '1.0',
+      meta: { title: 'Test' },
+      sections: [{
+        layers: [{
+          elements: [
+            {
+              type: 'text', content: 'Instagram', position: { x: 50, y: 90 },
+              link: { href: 'https://instagram.com/danielareyes', target: '_blank' },
+            },
+            {
+              type: 'png', src: '/logo.png', position: { x: 10, y: 10 },
+              link: { href: '/', target: '_self', ariaLabel: 'Ir al inicio' },
+            },
+          ],
+        }],
+      }],
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const textEl = result.data.sections[0].layers[0].elements[0] as any
+      expect(textEl.link.href).toBe('https://instagram.com/danielareyes')
+      expect(textEl.link.target).toBe('_blank')
+    }
+  })
+
+  it('link defaults target to _blank', () => {
+    const result = validateSite({
+      schemaVersion: '1.0',
+      meta: { title: 'Test' },
+      sections: [{
+        layers: [{
+          elements: [{
+            type: 'text', content: 'Click', position: { x: 0, y: 0 },
+            link: { href: '/about' },
+          }],
+        }],
+      }],
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const el = result.data.sections[0].layers[0].elements[0] as any
+      expect(el.link.target).toBe('_blank')
+    }
+  })
+
+  it('element without link works as before', () => {
+    const result = validateSite({
+      schemaVersion: '1.0',
+      meta: { title: 'Test' },
+      sections: [{
+        layers: [{
+          elements: [{ type: 'text', content: 'No link', position: { x: 0, y: 0 } }],
+        }],
+      }],
+    })
+    expect(result.ok).toBe(true)
+  })
+
   it('validates cursor config', () => {
     const result = validateSite({
       schemaVersion: '1.0',

@@ -96,6 +96,17 @@ const elementOverridesSchema = z.object({
   lineHeight: z.string().optional(),
 }).partial().optional()
 
+// ─── Link (any element can be a link) ──────────────────────────────────────────
+
+export const LINK_TARGETS = ['_blank', '_self', '_parent', '_top'] as const
+
+const linkSchema = z.object({
+  href: z.string(),
+  target: z.enum(LINK_TARGETS).default('_blank'),
+  rel: z.string().optional(),
+  ariaLabel: z.string().optional(),
+})
+
 // ─── Common element fields ─────────────────────────────────────────────────────
 
 const elementCommon = {
@@ -107,6 +118,7 @@ const elementCommon = {
   rotation: z.number().default(0),
   visible: z.boolean().default(true),
   interactive: z.boolean().default(false),
+  link: linkSchema.optional(),
   animations: z.array(animationSchema).default([]),
   mobile: elementOverridesSchema,
   desktop: elementOverridesSchema,
@@ -292,6 +304,7 @@ export type QualityTier = z.infer<typeof qualityTierSchema>
 export type Quality = z.infer<typeof qualitySchema>
 export type Site = z.infer<typeof siteSchema>
 export type CursorConfig = z.infer<typeof cursorSchema>
+export type ElementLink = z.infer<typeof linkSchema>
 export type ElementOverrides = z.infer<typeof elementOverridesSchema>
 
 // ─── Validator ─────────────────────────────────────────────────────────────────

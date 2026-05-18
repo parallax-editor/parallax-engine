@@ -38,4 +38,4 @@ export { assignIds } from './utils/ids'
 
 // Schema re-exports (convenience — canonical import is 'parallax-engine/schema')
 export { SCHEMA_VERSION, validateSite } from './schema'
-export type { Site, Section, Layer, AnyElement, Animation, CursorConfig } from './schema'
+export type { Site, Section, Layer, AnyElement, Animation, CursorConfig, ElementLink } from './schema'
