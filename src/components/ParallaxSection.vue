@@ -15,6 +15,7 @@ let observer: IntersectionObserver | null = null
 
 const isPinned = computed(() => props.section.scrollBehavior === 'pinned')
 const isSnap = computed(() => props.section.scrollBehavior === 'snap')
+const isHorizontal = computed(() => props.section.scrollDirection === 'horizontal')
 
 onMounted(() => {
   // Observe the outer wrapper (which has full height for pinned sections)
@@ -99,12 +100,27 @@ const sectionStyle = computed(() => {
   <!-- Outer wrapper: only meaningful for pinned (provides scroll height) -->
   <div ref="sectionRef" :style="outerStyle">
     <section ref="innerRef" :id="section.id" :style="sectionStyle" class="parallax-section">
-      <ParallaxLayer
-        v-for="(layer, i) in section.layers"
-        :key="layer.id || i"
-        :layer="layer"
-        :layer-index="i"
-      />
+      <div
+        v-if="isHorizontal"
+        class="horizontal-track"
+        :style="{ transform: `translateX(${-sectionProgress * 100}%)`, width: '100%', height: '100%', display: 'flex' }"
+      >
+        <ParallaxLayer
+          v-for="(layer, i) in section.layers"
+          :key="layer.id || i"
+          :layer="layer"
+          :layer-index="i"
+          style="flex-shrink: 0; width: 100vw;"
+        />
+      </div>
+      <template v-else>
+        <ParallaxLayer
+          v-for="(layer, i) in section.layers"
+          :key="layer.id || i"
+          :layer="layer"
+          :layer-index="i"
+        />
+      </template>
     </section>
   </div>
 </template>

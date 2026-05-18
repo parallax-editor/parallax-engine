@@ -20,6 +20,7 @@ const { style: animStyle } = useElementAnimations({
   sectionProgress,
   reducedMotion,
   elementRef,
+  elementId: props.element.id,
 })
 
 const anchorOffset: Record<string, [string, string]> = {
@@ -33,6 +34,22 @@ const anchorOffset: Record<string, [string, string]> = {
   'left': ['0%', '-50%'],
   'right': ['-100%', '-50%'],
 }
+
+// ─── Split text ────────────────────────────────────────────────────────────────
+
+const splitParts = computed(() => {
+  const mode = el.value.splitMode
+  if (!mode || mode === 'none') return null
+  const text = el.value.content
+  if (mode === 'chars') return text.split('')
+  if (mode === 'words') return text.split(/(\s+)/) // preserve spaces
+  if (mode === 'lines') return text.split('\n')
+  return null
+})
+
+const stagger = computed(() => el.value.staggerDelay || 50)
+
+// ─── Styles ────────────────────────────────────────────────────────────────────
 
 const positionStyle = computed(() => {
   const e = el.value
@@ -63,11 +80,13 @@ const mergedStyle = computed(() => {
   if (anim.transform) pos.transform = `${pos.transform || ''} ${anim.transform}`.trim()
   if (anim.opacity !== undefined) pos.opacity = anim.opacity
   if (anim.filter) pos.filter = anim.filter as string
+  if ((anim as any).clipPath) (pos as any).clipPath = (anim as any).clipPath
   if (anim.transition) pos.transition = anim.transition as string
   return pos
 })
 
 const tag = computed(() => el.value.semanticTag || 'p')
+const isInteractive = computed(() => el.value.interactive)
 </script>
 
 <template>
@@ -77,8 +96,24 @@ const tag = computed(() => el.value.semanticTag || 'p')
     ref="elementRef"
     :style="mergedStyle"
     class="parallax-text-element"
+    :class="{ interactive: isInteractive }"
+    :data-parallax-interactive="isInteractive || undefined"
   >
-    {{ el.content }}
+    <!-- Split text mode -->
+    <template v-if="splitParts">
+      <span
+        v-for="(part, i) in splitParts"
+        :key="i"
+        class="split-part"
+        :style="{
+          display: 'inline-block',
+          animationDelay: `${i * stagger}ms`,
+          whiteSpace: part === ' ' ? 'pre' : undefined,
+        }"
+      >{{ part }}</span>
+    </template>
+    <!-- Normal mode -->
+    <template v-else>{{ el.content }}</template>
   </component>
 </template>
 
@@ -87,5 +122,20 @@ const tag = computed(() => el.value.semanticTag || 'p')
   margin: 0;
   pointer-events: none;
   user-select: none;
+}
+.parallax-text-element.interactive {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.split-part {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: splitReveal 0.6s ease forwards;
+}
+@keyframes splitReveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

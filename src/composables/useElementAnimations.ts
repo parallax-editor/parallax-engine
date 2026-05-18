@@ -5,6 +5,7 @@ import {
 import type { Animation, QualityTier } from '../schema'
 import type { MouseState } from './useMouseTracking'
 import type { GyroscopeState } from './useGyroscope'
+import type { InteractionBus } from './useInteractionBus'
 
 // ─── Easing functions ──────────────────────────────────────────────────────────
 
@@ -54,7 +55,8 @@ export function computeLoopValue(
 
 // ─── Animation type → CSS property mapping ─────────────────────────────────────
 
-type AnimValue = { prop: 'opacity' | 'transform' | 'filter'; format: (v: number) => string }
+type AnimProp = 'opacity' | 'transform' | 'filter' | 'clipPath'
+type AnimValue = { prop: AnimProp; format: (v: number) => string }
 
 const animMap: Record<string, AnimValue> = {
   fadeIn: { prop: 'opacity', format: (v) => `${v}` },
@@ -67,6 +69,7 @@ const animMap: Record<string, AnimValue> = {
   scale: { prop: 'transform', format: (v) => `scale(${v})` },
   blur: { prop: 'filter', format: (v) => `blur(${v}px)` },
   skew: { prop: 'transform', format: (v) => `skew(${v}deg)` },
+  clipPath: { prop: 'clipPath', format: (v) => `inset(0 ${100 - v}% 0 0)` },
 }
 
 // ─── Composable ─────────────────────────────────────────────────────────────────
@@ -76,11 +79,14 @@ export interface ElementAnimationOptions {
   sectionProgress: Ref<number>
   reducedMotion: Ref<boolean>
   elementRef: Ref<HTMLElement | null>
+  elementId?: string
 }
 
 export function useElementAnimations(options: ElementAnimationOptions) {
-  const { animations, sectionProgress, reducedMotion, elementRef } = options
+  const { animations, sectionProgress, reducedMotion, elementRef, elementId } = options
   const hasEntered = ref(false)
+  const isHovered = ref(false)
+  const isClicked = ref(false)
   const loopTime = ref(0)
   let observer: IntersectionObserver | null = null
   let loopRafId: number | null = null
@@ -97,9 +103,12 @@ export function useElementAnimations(options: ElementAnimationOptions) {
   const quality = inject<ComputedRef<QualityTier>>('parallaxQuality', computed(() => ({
     maxLayers: 20, blurEnabled: true, loopFps: 60,
   })))
+  const interactionBus = inject<InteractionBus>('parallaxInteractionBus', null as any)
 
-  // Check if any animation needs loop RAF
   const hasLoopAnims = animations.some((a) => a.trigger === 'loop')
+  const hasHoverAnims = animations.some((a) => a.trigger === 'hover')
+  const hasClickAnims = animations.some((a) => a.trigger === 'click')
+  const hasDependsAnims = animations.some((a) => a.trigger === 'depends')
 
   function startLoopRaf() {
     if (!hasLoopAnims || loopRafId !== null) return
@@ -121,22 +130,50 @@ export function useElementAnimations(options: ElementAnimationOptions) {
     loopRafId = requestAnimationFrame(tick)
   }
 
-  // Setup IntersectionObserver for 'enter' trigger + visibility tracking for loops
   onMounted(() => {
     if (!elementRef.value) return
 
+    // IntersectionObserver for enter + visibility
     observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           isElementVisible.value = entry.isIntersecting
           if (entry.isIntersecting && !hasEntered.value) {
             hasEntered.value = true
+            if (interactionBus && elementId) {
+              interactionBus.emit({ elementId, event: 'enter', active: true })
+            }
           }
         }
       },
       { threshold: 0.1 },
     )
     observer.observe(elementRef.value)
+
+    // Hover/click listeners for interactive elements
+    if (hasHoverAnims || (interactionBus && elementId)) {
+      elementRef.value.addEventListener('mouseenter', () => {
+        isHovered.value = true
+        if (interactionBus && elementId) {
+          interactionBus.emit({ elementId, event: 'hover', active: true })
+        }
+      })
+      elementRef.value.addEventListener('mouseleave', () => {
+        isHovered.value = false
+        if (interactionBus && elementId) {
+          interactionBus.emit({ elementId, event: 'hover', active: false })
+        }
+      })
+    }
+
+    if (hasClickAnims || (interactionBus && elementId)) {
+      elementRef.value.addEventListener('click', () => {
+        isClicked.value = !isClicked.value // toggle
+        if (interactionBus && elementId) {
+          interactionBus.emit({ elementId, event: 'click', active: isClicked.value })
+        }
+      })
+    }
 
     if (hasLoopAnims) startLoopRaf()
   })
@@ -146,10 +183,28 @@ export function useElementAnimations(options: ElementAnimationOptions) {
     if (loopRafId !== null) cancelAnimationFrame(loopRafId)
   })
 
+  // Track depends trigger activations
+  const dependsActive = computed(() => {
+    if (!hasDependsAnims || !interactionBus) return new Map<string, boolean>()
+    const map = new Map<string, boolean>()
+    for (const anim of animations) {
+      if (anim.trigger === 'depends' && anim.dependsOn && anim.dependsEvent) {
+        map.set(
+          `${anim.dependsOn}:${anim.dependsEvent}`,
+          interactionBus.isActive(anim.dependsOn, anim.dependsEvent),
+        )
+      }
+    }
+    // Force reactivity by reading activeSet
+    void interactionBus.activeSet.value
+    return map
+  })
+
   const style = computed<CSSProperties>(() => {
     const transforms: string[] = []
     let opacity: number | undefined
     let filter: string | undefined
+    let clipPath: string | undefined
     let transition: string | undefined
 
     for (const anim of animations) {
@@ -165,14 +220,11 @@ export function useElementAnimations(options: ElementAnimationOptions) {
       }
 
       let value: number | undefined
+      let useTransition = false
 
       if (anim.trigger === 'enter') {
         value = hasEntered.value ? anim.to : anim.from
-        if (hasEntered.value) {
-          const dur = anim.duration ?? 600
-          const delay = anim.delay ?? 0
-          transition = `all ${dur}ms ${anim.easing} ${delay}ms`
-        }
+        if (hasEntered.value) useTransition = true
       } else if (anim.trigger === 'scroll') {
         const range = anim.range ?? [0, 1]
         const rangeSize = range[1] - range[0]
@@ -183,25 +235,30 @@ export function useElementAnimations(options: ElementAnimationOptions) {
         value = anim.from + (anim.to - anim.from) * easedProgress
       } else if (anim.trigger === 'loop') {
         const dur = anim.duration ?? 1000
-        value = computeLoopValue(
-          loopTime.value,
-          dur,
-          anim.from,
-          anim.to,
-          anim.yoyo ?? false,
-          anim.easing,
-        )
+        value = computeLoopValue(loopTime.value, dur, anim.from, anim.to, anim.yoyo ?? false, anim.easing)
       } else if (anim.trigger === 'mouse') {
-        // Map animation type to mouse axis
         const isX = anim.type === 'translateX' || anim.type === 'rotateY' || anim.type === 'skew'
         const normalized = isX ? mouse.mouseX.value : mouse.mouseY.value
-        const t = (normalized + 1) / 2 // -1..1 → 0..1
+        const t = (normalized + 1) / 2
         value = anim.from + (anim.to - anim.from) * t
       } else if (anim.trigger === 'gyroscope') {
         const isX = anim.type === 'translateX' || anim.type === 'rotateY' || anim.type === 'skew'
         const normalized = isX ? gyroscope.tiltY.value : gyroscope.tiltX.value
         const t = (normalized + 1) / 2
         value = anim.from + (anim.to - anim.from) * t
+      } else if (anim.trigger === 'hover') {
+        value = isHovered.value ? anim.to : anim.from
+        useTransition = true
+      } else if (anim.trigger === 'click') {
+        value = isClicked.value ? anim.to : anim.from
+        useTransition = true
+      } else if (anim.trigger === 'depends') {
+        if (anim.dependsOn && anim.dependsEvent) {
+          const key = `${anim.dependsOn}:${anim.dependsEvent}`
+          const active = dependsActive.value.get(key) ?? false
+          value = active ? anim.to : anim.from
+          useTransition = true
+        }
       }
 
       if (value === undefined) continue
@@ -212,6 +269,14 @@ export function useElementAnimations(options: ElementAnimationOptions) {
         transforms.push(mapping.format(value))
       } else if (mapping.prop === 'filter') {
         filter = mapping.format(value)
+      } else if (mapping.prop === 'clipPath') {
+        clipPath = mapping.format(value)
+      }
+
+      if (useTransition && !transition) {
+        const dur = anim.duration ?? 600
+        const delay = anim.delay ?? 0
+        transition = `all ${dur}ms ${anim.easing} ${delay}ms`
       }
     }
 
@@ -219,9 +284,10 @@ export function useElementAnimations(options: ElementAnimationOptions) {
     if (transforms.length > 0) result.transform = transforms.join(' ')
     if (opacity !== undefined) result.opacity = opacity
     if (filter) result.filter = filter
+    if (clipPath) (result as any).clipPath = clipPath
     if (transition) result.transition = transition
     return result
   })
 
-  return { style }
+  return { style, isHovered, isClicked }
 }

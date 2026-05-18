@@ -8,7 +8,9 @@
  * - §4 es canónico: text usa `fontSize`/`fontWeight` (no `size`/`weight` de §3)
  * - `loopMedia` para audio/video (evita colisión con `loop` boolean de animaciones)
  * - `trigger: "loop"` es tipo de disparo; `loop`/`yoyo` son modificadores opcionales
- * - Schema completo desde v1 (incluye audio/video/component), aunque Fase 1 solo renderiza png/text
+ * - Schema completo desde v1 (incluye audio/video/component)
+ * - v1.0 addendum: hover/click/depends triggers, clipPath animation, splitMode,
+ *   blendMode, scrollDirection, cursor — todos opcionales, backwards-compatible
  */
 
 import { z } from 'zod'
@@ -21,17 +23,21 @@ export const SCHEMA_VERSION = '1.0' as const
 
 export const TRANSITION_TYPES = ['fade', 'wipe', 'crossfade-blur', 'zoom', 'page-flip'] as const
 export const SCROLL_BEHAVIORS = ['pinned', 'continuous', 'snap'] as const
+export const SCROLL_DIRECTIONS = ['vertical', 'horizontal'] as const
 export const PARALLAX_MODES = ['scroll-vertical', 'scroll-horizontal', 'mouse', 'gyroscope', 'tilt'] as const
 export const ELEMENT_TYPES = ['png', 'text', 'component', 'audio', 'video'] as const
 export const ANCHOR_TYPES = ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'top', 'bottom', 'left', 'right'] as const
 export const SEMANTIC_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'] as const
+export const SPLIT_MODES = ['none', 'words', 'chars', 'lines'] as const
+export const DEPENDS_EVENTS = ['hover', 'click', 'enter'] as const
 
 export const ANIMATION_TYPES = [
   'fadeIn', 'fadeOut', 'translateX', 'translateY',
   'rotate', 'rotateX', 'rotateY', 'scale', 'blur', 'skew',
+  'clipPath',
 ] as const
 
-export const TRIGGER_TYPES = ['enter', 'scroll', 'mouse', 'gyroscope', 'loop'] as const
+export const TRIGGER_TYPES = ['enter', 'scroll', 'mouse', 'gyroscope', 'loop', 'hover', 'click', 'depends'] as const
 
 export const EASING_PRESETS = [
   'linear', 'easeIn', 'easeOut', 'easeInOut',
@@ -68,6 +74,9 @@ export const animationSchema = z.object({
   easing: z.enum(EASING_PRESETS).default('easeInOut'),
   loop: z.boolean().optional(),
   yoyo: z.boolean().optional(),
+  // depends trigger fields
+  dependsOn: z.string().optional(),
+  dependsEvent: z.enum(DEPENDS_EVENTS).optional(),
 })
 
 // ─── Element overrides (responsive mobile/desktop) ─────────────────────────────
@@ -97,6 +106,7 @@ const elementCommon = {
   opacity: z.number().min(0).max(1).default(1),
   rotation: z.number().default(0),
   visible: z.boolean().default(true),
+  interactive: z.boolean().default(false),
   animations: z.array(animationSchema).default([]),
   mobile: elementOverridesSchema,
   desktop: elementOverridesSchema,
@@ -122,6 +132,8 @@ export const textElementSchema = z.object({
   letterSpacing: z.string().optional(),
   lineHeight: z.string().optional(),
   semanticTag: z.enum(SEMANTIC_TAGS).default('p'),
+  splitMode: z.enum(SPLIT_MODES).default('none'),
+  staggerDelay: z.number().min(0).default(0),
 })
 
 export const componentElementSchema = z.object({
@@ -174,6 +186,7 @@ export const layerSchema = z.object({
   blur: z.number().min(0).default(0),
   opacity: z.number().min(0).max(1).default(1),
   perspective3d: z.boolean().default(false),
+  blendMode: z.string().optional(),
   elements: z.array(elementSchema).default([]),
 })
 
@@ -194,9 +207,20 @@ export const sectionSchema = z.object({
   id: z.string().optional(),
   height: z.string().default('100vh'),
   scrollBehavior: z.enum(SCROLL_BEHAVIORS).default('continuous'),
+  scrollDirection: z.enum(SCROLL_DIRECTIONS).default('vertical'),
   background: backgroundSchema.optional(),
   transition: transitionSchema.optional(),
   layers: z.array(layerSchema).default([]),
+})
+
+// ─── Cursor config ─────────────────────────────────────────────────────────────
+
+const cursorSchema = z.object({
+  enabled: z.boolean().default(false),
+  color: z.string().default('#000'),
+  size: z.number().default(20),
+  hoverScale: z.number().default(2),
+  blendMode: z.string().default('difference'),
 })
 
 // ─── Site-level schemas ────────────────────────────────────────────────────────
@@ -247,6 +271,7 @@ export const siteSchema = z.object({
   meta: siteMetaSchema,
   theme: themeSchema.optional(),
   quality: qualitySchema.optional(),
+  cursor: cursorSchema.optional(),
   sections: z.array(sectionSchema).default([]),
 })
 
@@ -266,6 +291,7 @@ export type Theme = z.infer<typeof themeSchema>
 export type QualityTier = z.infer<typeof qualityTierSchema>
 export type Quality = z.infer<typeof qualitySchema>
 export type Site = z.infer<typeof siteSchema>
+export type CursorConfig = z.infer<typeof cursorSchema>
 export type ElementOverrides = z.infer<typeof elementOverridesSchema>
 
 // ─── Validator ─────────────────────────────────────────────────────────────────

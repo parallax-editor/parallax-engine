@@ -7,9 +7,12 @@ import { useResponsive } from '../composables/useResponsive'
 import { useQualityTier } from '../composables/useQualityTier'
 import { useMouseTracking } from '../composables/useMouseTracking'
 import { useGyroscope } from '../composables/useGyroscope'
+import { useInteractionBus } from '../composables/useInteractionBus'
+import { useCursorEffect } from '../composables/useCursorEffect'
 import ParallaxSection from './ParallaxSection.vue'
 import ErrorOverlay from './ErrorOverlay.vue'
 import GyroscopePrompt from './GyroscopePrompt.vue'
+import CustomCursor from './CustomCursor.vue'
 
 const props = withDefaults(defineProps<{
   site: Site
@@ -57,6 +60,16 @@ provide('parallaxGyroscope', gyroscope)
 // ─── Component registry ────────────────────────────────────────────────────────
 
 provide('parallaxComponents', computed(() => props.components ?? {}))
+
+// ─── Interaction bus (hover/click/depends) ─────────────────────────────────────
+
+const interactionBus = useInteractionBus()
+provide('parallaxInteractionBus', interactionBus)
+
+// ─── Custom cursor ─────────────────────────────────────────────────────────────
+
+const cursorState = useCursorEffect(props.site.cursor)
+provide('parallaxCursor', cursorState)
 
 // ─── Error handler ─────────────────────────────────────────────────────────────
 
@@ -167,6 +180,7 @@ onUnmounted(() => {
       :section="section"
     />
     <GyroscopePrompt />
+    <CustomCursor v-if="site.cursor?.enabled" :config="site.cursor" />
     <ErrorOverlay
       v-if="mode === 'dev'"
       @dismiss="clearErrors"

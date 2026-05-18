@@ -92,6 +92,7 @@ const layerStyle = computed(() => {
   }
 
   if (props.layer.opacity < 1) style.opacity = props.layer.opacity
+  if (props.layer.blendMode) style.mixBlendMode = props.layer.blendMode
 
   return style
 })

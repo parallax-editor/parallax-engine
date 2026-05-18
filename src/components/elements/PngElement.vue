@@ -20,7 +20,10 @@ const { style: animStyle } = useElementAnimations({
   sectionProgress,
   reducedMotion,
   elementRef,
+  elementId: props.element.id,
 })
+
+const isInteractive = computed(() => el.value.interactive)
 
 const anchorOffset: Record<string, [string, string]> = {
   'center': ['-50%', '-50%'],
@@ -57,6 +60,7 @@ const mergedStyle = computed(() => {
   if (anim.transform) pos.transform = `${pos.transform || ''} ${anim.transform}`.trim()
   if (anim.opacity !== undefined) pos.opacity = anim.opacity
   if (anim.filter) pos.filter = anim.filter as string
+  if ((anim as any).clipPath) (pos as any).clipPath = (anim as any).clipPath
   if (anim.transition) pos.transition = anim.transition as string
   return pos
 })
@@ -70,6 +74,8 @@ const mergedStyle = computed(() => {
     :alt="el.alt || ''"
     :style="mergedStyle"
     class="parallax-png-element"
+    :class="{ interactive: isInteractive }"
+    :data-parallax-interactive="isInteractive || undefined"
     loading="lazy"
   />
 </template>
@@ -80,5 +86,9 @@ const mergedStyle = computed(() => {
   max-width: none;
   pointer-events: none;
   user-select: none;
+}
+.parallax-png-element.interactive {
+  pointer-events: auto;
+  cursor: pointer;
 }
 </style>
