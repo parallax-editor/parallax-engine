@@ -9,6 +9,7 @@ import { useMouseTracking } from '../composables/useMouseTracking'
 import { useGyroscope } from '../composables/useGyroscope'
 import { useInteractionBus } from '../composables/useInteractionBus'
 import { useCursorEffect } from '../composables/useCursorEffect'
+import { resolveSections } from '../utils/views'
 import ParallaxSection from './ParallaxSection.vue'
 import ErrorOverlay from './ErrorOverlay.vue'
 import GyroscopePrompt from './GyroscopePrompt.vue'
@@ -36,6 +37,14 @@ provide('parallaxViewportHeight', viewportHeight)
 
 const device = useResponsive()
 provide('parallaxDevice', device)
+
+// ─── Resolved sections (v1.1 views OR legacy single tree) ──────────────────────
+// `resolveSections` returns the legacy `site.sections` verbatim when `views` is
+// absent (per-element mobile/desktop override behavior continues downstream,
+// unchanged). When `views` is present, it returns the chosen view's full tree
+// as-is (no per-element override merging — the two trees are independent).
+// Viewport comes from the EXISTING `useResponsive` determination (`device`).
+const sections = computed(() => resolveSections(props.site, device.value))
 
 // ─── Quality tier ──────────────────────────────────────────────────────────────
 
@@ -80,7 +89,7 @@ provide('parallaxReportError', reportError)
 // ─── Theme CSS variables ───────────────────────────────────────────────────────
 
 const hasSnap = computed(() =>
-  props.site.sections.some((s) => s.scrollBehavior === 'snap'),
+  sections.value.some((s) => s.scrollBehavior === 'snap'),
 )
 
 const themeStyle = computed(() => {
@@ -175,7 +184,7 @@ onUnmounted(() => {
 <template>
   <div class="parallax-site" :style="themeStyle" :lang="site.meta.lang">
     <ParallaxSection
-      v-for="(section, i) in site.sections"
+      v-for="(section, i) in sections"
       :key="section.id || i"
       :section="section"
     />

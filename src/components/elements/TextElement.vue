@@ -3,7 +3,7 @@ import { computed, ref, inject, type Ref } from 'vue'
 import type { TextElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit } from '../../utils/units'
+import { resolveUnit, resolveElementPosition, TEXT_BOX_RESET } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
 import ElementLink from './ElementLink.vue'
 
@@ -24,18 +24,6 @@ const { style: animStyle } = useElementAnimations({
   elementId: props.element.id,
 })
 
-const anchorOffset: Record<string, [string, string]> = {
-  'center': ['-50%', '-50%'],
-  'top-left': ['0%', '0%'],
-  'top-right': ['-100%', '0%'],
-  'bottom-left': ['0%', '-100%'],
-  'bottom-right': ['-100%', '-100%'],
-  'top': ['-50%', '0%'],
-  'bottom': ['-50%', '-100%'],
-  'left': ['0%', '-50%'],
-  'right': ['-100%', '-50%'],
-}
-
 // ─── Split text ────────────────────────────────────────────────────────────────
 
 const splitParts = computed(() => {
@@ -54,13 +42,12 @@ const stagger = computed(() => el.value.staggerDelay || 50)
 
 const positionStyle = computed(() => {
   const e = el.value
-  const [ox, oy] = anchorOffset[e.anchor] || ['-50%', '-50%']
   const base: Record<string, string | number> = {
-    position: 'absolute',
-    left: resolveUnit(e.position.x),
-    top: resolveUnit(e.position.y),
-    transform: `translate(${ox}, ${oy})`,
-    transformOrigin: (e.anchor || 'center').replace('-', ' '),
+    ...resolveElementPosition(e),
+    // Neutralize the semantic tag's UA box (e.g. <h1> margin-block ≈ 0.67em)
+    // inline so position+anchor is geometrically exact on both axes even
+    // without the engine stylesheet. Themed typography below still applies.
+    ...TEXT_BOX_RESET,
   }
   if (e.size?.width != null) base.width = resolveUnit(e.size.width)
   if (e.size?.height != null) base.height = resolveUnit(e.size.height)

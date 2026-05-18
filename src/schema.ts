@@ -11,13 +11,16 @@
  * - Schema completo desde v1 (incluye audio/video/component)
  * - v1.0 addendum: hover/click/depends triggers, clipPath animation, splitMode,
  *   blendMode, scrollDirection, cursor — todos opcionales, backwards-compatible
+ * - v1.1: `views` opcional (árboles independientes desktop/mobile). El path legacy
+ *   (`sections` raíz + overrides mobile/desktop por elemento) sigue 100% válido.
+ *   1.0 y 1.1 son compatibles: la validación acepta ambas versiones. Aditivo.
  */
 
 import { z } from 'zod'
 
 // ─── Version ───────────────────────────────────────────────────────────────────
 
-export const SCHEMA_VERSION = '1.0' as const
+export const SCHEMA_VERSION = '1.1' as const
 
 // ─── Const enums (runtime + type-level) ────────────────────────────────────────
 
@@ -276,16 +279,50 @@ export const qualitySchema = z.object({
   desktop: qualityTierSchema,
 })
 
-// ─── Site (root) ───────────────────────────────────────────────────────────────
+// ─── Views (v1.1 — independent desktop/mobile section trees) ────────────────────
 
-export const siteSchema = z.object({
-  schemaVersion: z.string().regex(/^\d+\.\d+$/, 'schemaVersion must be semver (e.g. "1.0")'),
-  meta: siteMetaSchema,
-  theme: themeSchema.optional(),
-  quality: qualitySchema.optional(),
-  cursor: cursorSchema.optional(),
+/**
+ * A "view" is one complete, independent section tree. `desktop` is required when
+ * `views` is present; `mobile` is optional and falls back to `desktop` at resolve
+ * time. The two trees are independent — no per-element override merging is applied
+ * on the views path (that behavior remains exclusive to the legacy `sections` path).
+ */
+const viewSchema = z.object({
   sections: z.array(sectionSchema).default([]),
 })
+
+export const viewsSchema = z.object({
+  desktop: viewSchema,
+  mobile: viewSchema.optional(),
+})
+
+// ─── Site (root) ───────────────────────────────────────────────────────────────
+
+export const siteSchema = z
+  .object({
+    schemaVersion: z.string().regex(/^\d+\.\d+$/, 'schemaVersion must be semver (e.g. "1.0")'),
+    meta: siteMetaSchema,
+    theme: themeSchema.optional(),
+    quality: qualitySchema.optional(),
+    cursor: cursorSchema.optional(),
+    // Legacy path (v1.0): single shared tree + per-element mobile/desktop overrides.
+    // Stays valid forever. `.default([])` so omitting it (views path) is fine.
+    sections: z.array(sectionSchema).default([]),
+    // v1.1 path: two independent trees. Optional & additive.
+    views: viewsSchema.optional(),
+  })
+  .refine(
+    // At least one source of sections must exist. The legacy `sections` field
+    // always survives parsing (`.default([])`), so any legacy doc — including
+    // historically-valid empty ones — keeps passing. The views path passes via
+    // `views.desktop`. This refine only ever fires for genuinely malformed input.
+    (site) => Array.isArray(site.sections) || site.views?.desktop != null,
+    {
+      message:
+        'site must provide sections: either top-level `sections` or `views.desktop.sections`',
+      path: ['sections'],
+    },
+  )
 
 // ─── Inferred types ────────────────────────────────────────────────────────────
 
@@ -298,6 +335,8 @@ export type VideoElement = z.infer<typeof videoElementSchema>
 export type AnyElement = z.infer<typeof elementSchema>
 export type Layer = z.infer<typeof layerSchema>
 export type Section = z.infer<typeof sectionSchema>
+export type View = z.infer<typeof viewSchema>
+export type Views = z.infer<typeof viewsSchema>
 export type SiteMeta = z.infer<typeof siteMetaSchema>
 export type Theme = z.infer<typeof themeSchema>
 export type QualityTier = z.infer<typeof qualityTierSchema>
@@ -335,11 +374,11 @@ export function validateSite(input: unknown): ValidationResult {
 
 // ─── ID assignment ─────────────────────────────────────────────────────────────
 
-export function assignIds(site: Site): Site {
-  const copy: Site = JSON.parse(JSON.stringify(site))
-  const counters = { section: 0, layer: 0, el: 0 }
-
-  for (const section of copy.sections) {
+function assignIdsToSections(
+  sections: Section[],
+  counters: { section: number; layer: number; el: number },
+): void {
+  for (const section of sections) {
     if (!section.id) {
       counters.section++
       section.id = `section-${counters.section}`
@@ -357,6 +396,30 @@ export function assignIds(site: Site): Site {
       }
     }
   }
+}
+
+export function assignIds(site: Site): Site {
+  const copy: Site = JSON.parse(JSON.stringify(site))
+  const counters = { section: 0, layer: 0, el: 0 }
+
+  // Legacy `sections` first — counter sequence for legacy-only docs is unchanged.
+  assignIdsToSections(copy.sections, counters)
+
+  // v1.1 views (if present): independent trees also get ids assigned.
+  if (copy.views) {
+    assignIdsToSections(copy.views.desktop.sections, counters)
+    if (copy.views.mobile) {
+      assignIdsToSections(copy.views.mobile.sections, counters)
+    }
+  }
 
   return copy
 }
+
+// ─── Views resolver + migration (v1.1) ─────────────────────────────────────────
+// Re-exported here so the Vue-free `parallax-engine/schema` entrypoint (used by
+// consumers' validate scripts and the editor) also exposes them. `views.ts`
+// imports from this module type-only, so there is no runtime import cycle.
+
+export { resolveSections, toViews } from './utils/views'
+export type { Viewport } from './utils/views'

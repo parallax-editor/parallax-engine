@@ -49,6 +49,7 @@ const sectionProgress = computed(() => {
 })
 
 provide('sectionProgress', sectionProgress)
+provide('parallaxHorizontalSection', isHorizontal)
 
 const outerStyle = computed(() => {
   const style: Record<string, string> = {}

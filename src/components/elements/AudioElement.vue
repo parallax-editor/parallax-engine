@@ -3,7 +3,7 @@ import { ref, computed, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import type { AudioElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit } from '../../utils/units'
+import { resolveUnit, resolveElementPosition } from '../../utils/units'
 import UnmuteButton from '../UnmuteButton.vue'
 
 const props = defineProps<{ element: AudioElement }>()
@@ -49,11 +49,7 @@ function handleUnmute() {
 
 const positionStyle = computed(() => {
   const e = el.value
-  const base: Record<string, string | number> = {
-    position: 'absolute',
-    left: resolveUnit(e.position.x),
-    top: resolveUnit(e.position.y),
-  }
+  const base: Record<string, string | number> = resolveElementPosition(e)
   if (e.size?.width != null) base.width = resolveUnit(e.size.width)
   return base
 })

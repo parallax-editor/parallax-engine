@@ -31,8 +31,8 @@ function siteWithElement(element: Record<string, unknown>): Record<string, unkno
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('SCHEMA_VERSION', () => {
-  it('is 1.0', () => {
-    expect(SCHEMA_VERSION).toBe('1.0')
+  it('is 1.1', () => {
+    expect(SCHEMA_VERSION).toBe('1.1')
   })
 })
 

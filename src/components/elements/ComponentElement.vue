@@ -4,7 +4,7 @@ import type { ComponentElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import type { EngineError } from '../../composables/useErrorHandler'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit } from '../../utils/units'
+import { resolveUnit, resolveElementPosition } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
 
 const props = defineProps<{ element: ComponentElement }>()
@@ -41,11 +41,7 @@ const { style: animStyle } = useElementAnimations({
 
 const positionStyle = computed(() => {
   const e = el.value
-  const base: Record<string, string | number> = {
-    position: 'absolute',
-    left: resolveUnit(e.position.x),
-    top: resolveUnit(e.position.y),
-  }
+  const base: Record<string, string | number> = resolveElementPosition(e)
   if (e.size?.width != null) base.width = resolveUnit(e.size.width)
   if (e.size?.height != null) base.height = resolveUnit(e.size.height)
   return base
@@ -54,7 +50,8 @@ const positionStyle = computed(() => {
 const mergedStyle = computed(() => {
   const pos = { ...positionStyle.value }
   const anim = animStyle.value
-  if (anim.transform) pos.transform = anim.transform as string
+  // Keep the anchor translate; layer the animation transform on top of it.
+  if (anim.transform) pos.transform = `${pos.transform || ''} ${anim.transform}`.trim()
   if (anim.opacity !== undefined) pos.opacity = anim.opacity
   if (anim.transition) pos.transition = anim.transition as string
   return pos

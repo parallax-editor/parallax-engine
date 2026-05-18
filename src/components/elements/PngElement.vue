@@ -3,7 +3,7 @@ import { computed, ref, inject, type Ref } from 'vue'
 import type { PngElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit } from '../../utils/units'
+import { resolveUnit, resolveElementPosition } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
 import ElementLink from './ElementLink.vue'
 
@@ -26,28 +26,9 @@ const { style: animStyle } = useElementAnimations({
 
 const isInteractive = computed(() => el.value.interactive || !!el.value.link)
 
-const anchorOffset: Record<string, [string, string]> = {
-  'center': ['-50%', '-50%'],
-  'top-left': ['0%', '0%'],
-  'top-right': ['-100%', '0%'],
-  'bottom-left': ['0%', '-100%'],
-  'bottom-right': ['-100%', '-100%'],
-  'top': ['-50%', '0%'],
-  'bottom': ['-50%', '-100%'],
-  'left': ['0%', '-50%'],
-  'right': ['-100%', '-50%'],
-}
-
 const positionStyle = computed(() => {
   const e = el.value
-  const [ox, oy] = anchorOffset[e.anchor] || ['-50%', '-50%']
-  const base: Record<string, string | number> = {
-    position: 'absolute',
-    left: resolveUnit(e.position.x),
-    top: resolveUnit(e.position.y),
-    transform: `translate(${ox}, ${oy})`,
-    transformOrigin: (e.anchor || 'center').replace('-', ' '),
-  }
+  const base: Record<string, string | number> = resolveElementPosition(e)
   if (e.size?.width != null) base.width = resolveUnit(e.size.width)
   if (e.size?.height != null) base.height = resolveUnit(e.size.height)
   if (e.opacity !== 1) base.opacity = e.opacity

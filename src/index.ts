@@ -33,9 +33,11 @@ export { defineParallaxConfig } from './config'
 export type { ParallaxConfig, ComponentRegistration, EditableProp } from './config'
 
 // Utils
-export { resolveUnit, resolvePosition, resolveSize } from './utils/units'
+export { resolveUnit, resolvePosition, resolveSize, resolveAnchorOffset, resolveAnchorOrigin, resolveElementPosition, ANCHOR_OFFSETS, TEXT_BOX_RESET } from './utils/units'
 export { assignIds } from './utils/ids'
+export { resolveSections, toViews } from './utils/views'
+export type { Viewport } from './utils/views'
 
 // Schema re-exports (convenience — canonical import is 'parallax-engine/schema')
 export { SCHEMA_VERSION, validateSite } from './schema'
-export type { Site, Section, Layer, AnyElement, Animation, CursorConfig, ElementLink } from './schema'
+export type { Site, Section, Layer, AnyElement, Animation, CursorConfig, ElementLink, View, Views } from './schema'

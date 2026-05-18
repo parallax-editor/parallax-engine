@@ -16,6 +16,7 @@ const props = defineProps<{
 
 const viewportHeight = inject<Ref<number>>('parallaxViewportHeight', { value: 800 } as any)
 const sectionProgress = inject<Ref<number>>('sectionProgress', { value: 0 } as any)
+const isHorizontalSection = inject<Ref<boolean>>('parallaxHorizontalSection', { value: false } as any)
 const reducedMotion = inject<Ref<boolean>>('reducedMotion', { value: false } as any)
 const quality = inject<ComputedRef<QualityTier>>('parallaxQuality', computed(() => ({
   maxLayers: 20, blurEnabled: true, loopFps: 60,
@@ -33,10 +34,13 @@ const GYRO_FACTOR = 20
 const shouldRender = computed(() => props.layerIndex < quality.value.maxLayers)
 
 const layerStyle = computed(() => {
+  // Absolutely fill the wrapper (which itself fills the positioned section).
+  // Using inset:0 instead of width/height:100% avoids relying on a
+  // percentage-height chain that collapses when an ancestor has auto height,
+  // which previously made every element resolve top/left against a 0px box.
   const style: Record<string, string | number> = {
-    position: 'relative',
-    width: '100%',
-    height: '100%',
+    position: 'absolute',
+    inset: '0',
   }
 
   if (reducedMotion.value) {
@@ -98,11 +102,23 @@ const layerStyle = computed(() => {
 })
 
 const wrapperStyle = computed(() => {
-  if (!props.layer.perspective3d) return undefined
-  return {
-    perspective: '1000px',
-    transformStyle: 'preserve-3d' as const,
+  const style: Record<string, string> = {}
+  if (isHorizontalSection.value) {
+    // Inside the flex .horizontal-track: a full-height cell that also acts
+    // as the positioning context for the absolutely-filled inner layer.
+    style.position = 'relative'
+    style.height = '100%'
+  } else {
+    // Fill the relatively-positioned <section> so the inner layer (and its
+    // absolutely-positioned elements) resolve against the real section height.
+    style.position = 'absolute'
+    style.inset = '0'
   }
+  if (props.layer.perspective3d) {
+    style.perspective = '1000px'
+    style.transformStyle = 'preserve-3d'
+  }
+  return style
 })
 </script>
 
