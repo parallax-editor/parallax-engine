@@ -71,6 +71,7 @@ const mergedStyle = computed(() => {
   <ElementLink v-if="el.visible !== false" :link="el.link">
     <img
       ref="elementRef"
+      :data-parallax-id="element.id"
       :src="el.src"
       :alt="el.alt || ''"
       :style="mergedStyle"

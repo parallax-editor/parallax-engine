@@ -95,6 +95,7 @@ const isInteractive = computed(() => el.value.interactive || !!el.value.link)
     <component
       :is="tag"
       ref="elementRef"
+      :data-parallax-id="element.id"
       :style="mergedStyle"
       class="parallax-text-element"
       :class="{ interactive: isInteractive }"

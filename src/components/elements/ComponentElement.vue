@@ -65,6 +65,7 @@ const mergedStyle = computed(() => {
   <div
     v-if="el.visible !== false && resolvedComponent"
     ref="elementRef"
+    :data-parallax-id="element.id"
     :style="mergedStyle"
     class="parallax-component-element"
   >
