@@ -1,5 +1,5 @@
 import {
-  computed, ref, onMounted, onUnmounted, inject,
+  computed, ref, watch, onMounted, onUnmounted, inject,
   type Ref, type CSSProperties, type ComputedRef,
 } from 'vue'
 import type { Animation, QualityTier } from '../schema'
@@ -28,6 +28,35 @@ const easingFns: Record<string, (t: number) => number> = {
 function applyEasing(t: number, easing: string): number {
   const fn = easingFns[easing] || easingFns.easeInOut
   return fn(clamp(t, 0, 1))
+}
+
+/**
+ * CSS timing-function equivalents for the schema's easing presets.
+ * The schema allows easings like `easeOutCubic`/`easeInQuart` that are NOT
+ * valid CSS `transition-timing-function` keywords. Emitting them verbatim in
+ * the `transition` shorthand makes the browser reject the WHOLE shorthand, so
+ * `enter`/`hover`/`click`/`depends` animations would jump instantly with no
+ * tween (a root cause of "enter fadeIn does not run"). Map every preset to a
+ * real cubic-bezier so the transition is always a valid, animated declaration.
+ */
+const cssEasing: Record<string, string> = {
+  linear: 'linear',
+  easeIn: 'cubic-bezier(0.42, 0, 1, 1)',
+  easeOut: 'cubic-bezier(0, 0, 0.58, 1)',
+  easeInOut: 'cubic-bezier(0.42, 0, 0.58, 1)',
+  easeInCubic: 'cubic-bezier(0.55, 0.055, 0.675, 0.19)',
+  easeOutCubic: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
+  easeInOutCubic: 'cubic-bezier(0.645, 0.045, 0.355, 1)',
+  easeInQuart: 'cubic-bezier(0.895, 0.03, 0.685, 0.22)',
+  easeOutQuart: 'cubic-bezier(0.165, 0.84, 0.44, 1)',
+  easeInOutQuart: 'cubic-bezier(0.77, 0, 0.175, 1)',
+  easeInQuint: 'cubic-bezier(0.755, 0.05, 0.855, 0.06)',
+  easeOutQuint: 'cubic-bezier(0.23, 1, 0.32, 1)',
+  easeInOutQuint: 'cubic-bezier(0.86, 0, 0.07, 1)',
+}
+
+export function cssEasingFor(easing: string): string {
+  return cssEasing[easing] || cssEasing.easeInOut
 }
 
 function clamp(val: number, min: number, max: number): number {
@@ -75,7 +104,12 @@ const animMap: Record<string, AnimValue> = {
 // ─── Composable ─────────────────────────────────────────────────────────────────
 
 export interface ElementAnimationOptions {
-  animations: Animation[]
+  // Reactive getter for the element's animations. A getter (not a plain
+  // `Animation[]`) so the composable re-derives when the editor patches a
+  // NEW animations array onto the live element without remounting the engine
+  // (engineKey is stable to preserve scroll/selection). Callers pass
+  // `() => el.value.animations` (the merged, responsive-aware source).
+  animations: () => Animation[]
   sectionProgress: Ref<number>
   reducedMotion: Ref<boolean>
   elementRef: Ref<HTMLElement | null>
@@ -83,7 +117,10 @@ export interface ElementAnimationOptions {
 }
 
 export function useElementAnimations(options: ElementAnimationOptions) {
-  const { animations, sectionProgress, reducedMotion, elementRef, elementId } = options
+  const { sectionProgress, reducedMotion, elementRef, elementId } = options
+  // Reactive view of the animations array — recomputes whenever the editor
+  // swaps in a new array (or a responsive override changes it).
+  const anims = computed(() => options.animations() ?? [])
   const hasEntered = ref(false)
   const isHovered = ref(false)
   const isClicked = ref(false)
@@ -105,13 +142,13 @@ export function useElementAnimations(options: ElementAnimationOptions) {
   })))
   const interactionBus = inject<InteractionBus>('parallaxInteractionBus', null as any)
 
-  const hasLoopAnims = animations.some((a) => a.trigger === 'loop')
-  const hasHoverAnims = animations.some((a) => a.trigger === 'hover')
-  const hasClickAnims = animations.some((a) => a.trigger === 'click')
-  const hasDependsAnims = animations.some((a) => a.trigger === 'depends')
+  const hasLoopAnims = computed(() => anims.value.some((a) => a.trigger === 'loop'))
+  const hasHoverAnims = computed(() => anims.value.some((a) => a.trigger === 'hover'))
+  const hasClickAnims = computed(() => anims.value.some((a) => a.trigger === 'click'))
+  const hasDependsAnims = computed(() => anims.value.some((a) => a.trigger === 'depends'))
 
   function startLoopRaf() {
-    if (!hasLoopAnims || loopRafId !== null) return
+    if (!hasLoopAnims.value || loopRafId !== null) return
     const minInterval = 1000 / quality.value.loopFps
     lastTimestamp = performance.now()
 
@@ -133,25 +170,48 @@ export function useElementAnimations(options: ElementAnimationOptions) {
   onMounted(() => {
     if (!elementRef.value) return
 
-    // IntersectionObserver for enter + visibility
+    // IntersectionObserver for enter + visibility.
+    // threshold:0 (any pixel visible) so a thin/short text box — including a
+    // split/animated heading whose box is only a couple of px tall before it
+    // animates in — still fires reliably. threshold:0.1 could never be met by
+    // such a box, which made enter/scroll inconsistent. No rootMargin shrink:
+    // isElementVisible also gates the loop rAF, so it must reflect true
+    // viewport intersection (a negative bottom margin starved bottom-of-hero
+    // loop animations like scroll-hint).
     observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           isElementVisible.value = entry.isIntersecting
           if (entry.isIntersecting && !hasEntered.value) {
-            hasEntered.value = true
+            // Defer the from→to flip to the next frame so the browser paints
+            // the `from` state (with the transition already on the element)
+            // BEFORE the value changes. Flipping in the same commit that
+            // first attaches the transition means the browser sees no prior
+            // value to tween from, so the element snaps instead of animating
+            // (root cause of "enter fadeIn does not run").
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                hasEntered.value = true
+              })
+            })
             if (interactionBus && elementId) {
               interactionBus.emit({ elementId, event: 'enter', active: true })
             }
           }
         }
       },
-      { threshold: 0.1 },
+      { threshold: 0 },
     )
     observer.observe(elementRef.value)
 
-    // Hover/click listeners for interactive elements
-    if (hasHoverAnims || (interactionBus && elementId)) {
+    // Hover/click listeners. Attached on a STABLE condition (current OR
+    // future hover/click animation, or an interaction-bus element) rather than
+    // a one-shot read of the animation list, so the editor flipping a trigger
+    // TO hover/click after mount still works: the listeners just flip the
+    // isHovered/isClicked refs, and the reactive `style` (which reads
+    // `anims.value`) then applies the now-present hover/click animation. The
+    // listeners are harmless no-ops when no hover/click animation is present.
+    if (hasHoverAnims.value || hasClickAnims.value || (interactionBus && elementId)) {
       elementRef.value.addEventListener('mouseenter', () => {
         isHovered.value = true
         if (interactionBus && elementId) {
@@ -164,9 +224,6 @@ export function useElementAnimations(options: ElementAnimationOptions) {
           interactionBus.emit({ elementId, event: 'hover', active: false })
         }
       })
-    }
-
-    if (hasClickAnims || (interactionBus && elementId)) {
       elementRef.value.addEventListener('click', () => {
         isClicked.value = !isClicked.value // toggle
         if (interactionBus && elementId) {
@@ -175,7 +232,22 @@ export function useElementAnimations(options: ElementAnimationOptions) {
       })
     }
 
-    if (hasLoopAnims) startLoopRaf()
+    if (hasLoopAnims.value) startLoopRaf()
+  })
+
+  // React to the editor adding/removing a loop animation without a remount:
+  // start the rAF when a loop appears, stop it (and reset loopTime so the next
+  // loop starts clean) when the last loop is removed. startLoopRaf is
+  // idempotent (guards on loopRafId), so a redundant start is a no-op.
+  watch(hasLoopAnims, (has) => {
+    if (!elementRef.value) return
+    if (has) {
+      startLoopRaf()
+    } else if (loopRafId !== null) {
+      cancelAnimationFrame(loopRafId)
+      loopRafId = null
+      loopTime.value = 0
+    }
   })
 
   onUnmounted(() => {
@@ -185,9 +257,9 @@ export function useElementAnimations(options: ElementAnimationOptions) {
 
   // Track depends trigger activations
   const dependsActive = computed(() => {
-    if (!hasDependsAnims || !interactionBus) return new Map<string, boolean>()
+    if (!hasDependsAnims.value || !interactionBus) return new Map<string, boolean>()
     const map = new Map<string, boolean>()
-    for (const anim of animations) {
+    for (const anim of anims.value) {
       if (anim.trigger === 'depends' && anim.dependsOn && anim.dependsEvent) {
         map.set(
           `${anim.dependsOn}:${anim.dependsEvent}`,
@@ -200,21 +272,64 @@ export function useElementAnimations(options: ElementAnimationOptions) {
     return map
   })
 
+  // CSS property name the engine writes for each AnimProp, used to build a
+  // PROPERTY-SCOPED transition. A scoped transition (e.g. `opacity 800ms ...`)
+  // — never `all` — is critical: an `all` transition also tweens a
+  // co-located loop/scroll-driven transform that updates every rAF frame,
+  // freezing it into a slow lerp toward a moving target (regression: the
+  // scroll-hint loop stopped animating once enter emitted a transition).
+  const cssPropFor: Record<AnimProp, string> = {
+    opacity: 'opacity',
+    transform: 'transform',
+    filter: 'filter',
+    clipPath: 'clip-path',
+  }
+
+  // CSS properties written EVERY rAF frame by a continuous trigger
+  // (loop/scroll/mouse/gyroscope). A CSS `transition` must NEVER be emitted for
+  // one of these: a hover/click/enter animation on the SAME property (e.g. a
+  // hover-rotate while a loop-rotate also writes transform) would otherwise tell
+  // the browser to tween every per-frame write toward a moving target — the
+  // continuous motion freezes into a slow lerp and looks frozen/laggy on load
+  // (the reported flor-surreal "looks frozen/odd"). The continuous animation is
+  // its own smooth tween via rAF, so it needs no CSS transition; the
+  // discrete-trigger one silently loses its transition on that shared property
+  // rather than corrupting the continuous one.
+  const CONTINUOUS_TRIGGERS = new Set(['loop', 'scroll', 'mouse', 'gyroscope'])
+  // Derived reactively so a trigger changing to/from a continuous trigger
+  // recomputes which CSS properties are off-limits for a transition.
+  const continuouslyDrivenProps = computed(() => {
+    const set = new Set<string>()
+    for (const a of anims.value) {
+      if (CONTINUOUS_TRIGGERS.has(a.trigger)) {
+        const m = animMap[a.type]
+        if (m) set.add(cssPropFor[m.prop])
+      }
+    }
+    return set
+  })
+
   const style = computed<CSSProperties>(() => {
     const transforms: string[] = []
     let opacity: number | undefined
     let filter: string | undefined
     let clipPath: string | undefined
-    let transition: string | undefined
+    // Property-scoped transitions, de-duped by CSS property (first writer of a
+    // property wins, mirroring the previous single-transition behaviour).
+    const transitionByProp = new Map<string, string>()
 
-    for (const anim of animations) {
+    for (const anim of anims.value) {
       const mapping = animMap[anim.type]
       if (!mapping) continue
 
-      // Reduced motion: skip motion animations, keep opacity instant
+      // Reduced motion: no movement/blur. A fade resolves straight to its
+      // end state so the element is ALWAYS visible (never a blank box waiting
+      // on a scroll/enter that the user disabled motion for) with a short,
+      // gentle opacity transition.
       if (reducedMotion.value) {
         if (anim.type === 'fadeIn' || anim.type === 'fadeOut') {
           opacity = anim.to
+          if (!transitionByProp.has('opacity')) transitionByProp.set('opacity', 'opacity 200ms ease')
         }
         continue
       }
@@ -224,7 +339,9 @@ export function useElementAnimations(options: ElementAnimationOptions) {
 
       if (anim.trigger === 'enter') {
         value = hasEntered.value ? anim.to : anim.from
-        if (hasEntered.value) useTransition = true
+        // Always emit the transition (even before entering) so it is already
+        // attached to the element when hasEntered flips on the next frame.
+        useTransition = true
       } else if (anim.trigger === 'scroll') {
         const range = anim.range ?? [0, 1]
         const rangeSize = range[1] - range[0]
@@ -273,12 +390,26 @@ export function useElementAnimations(options: ElementAnimationOptions) {
         clipPath = mapping.format(value)
       }
 
-      if (useTransition && !transition) {
-        const dur = anim.duration ?? 600
-        const delay = anim.delay ?? 0
-        transition = `all ${dur}ms ${anim.easing} ${delay}ms`
+      if (useTransition) {
+        const cssProp = cssPropFor[mapping.prop]
+        // Never transition a property that a continuous trigger also writes
+        // every frame — the transition would lerp/freeze that continuous
+        // animation. The discrete-trigger animation still updates the value
+        // instantly (its rotate/scale snaps), it just loses the CSS tween on a
+        // shared property; the continuous motion stays smooth.
+        if (!transitionByProp.has(cssProp) && !continuouslyDrivenProps.value.has(cssProp)) {
+          const dur = anim.duration ?? 600
+          const delay = anim.delay ?? 0
+          transitionByProp.set(
+            cssProp,
+            `${cssProp} ${dur}ms ${cssEasingFor(anim.easing)} ${delay}ms`,
+          )
+        }
       }
     }
+    const transition = transitionByProp.size > 0
+      ? [...transitionByProp.values()].join(', ')
+      : undefined
 
     const result: CSSProperties = {}
     if (transforms.length > 0) result.transform = transforms.join(' ')
@@ -289,5 +420,5 @@ export function useElementAnimations(options: ElementAnimationOptions) {
     return result
   })
 
-  return { style, isHovered, isClicked }
+  return { style, isHovered, isClicked, hasEntered }
 }

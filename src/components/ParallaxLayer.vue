@@ -102,7 +102,16 @@ const layerStyle = computed(() => {
 })
 
 const wrapperStyle = computed(() => {
-  const style: Record<string, string> = {}
+  // The wrapper fills the whole section (absolute inset:0). It MUST be
+  // pointer-events:none so a layer rendered LATER in the DOM (e.g. a text/
+  // concepto layer) does not sit on top of and swallow clicks meant for an
+  // interactive element in an EARLIER layer below it (root cause of "clicking
+  // the linked flor does nothing" — a higher empty layer wrapper intercepted
+  // the click). Interactive elements re-enable pointer-events:auto on
+  // themselves, so events still reach them; only the inert wrapper is
+  // transparent to the pointer. The inner .parallax-layer is already
+  // pointer-events:none for the same reason.
+  const style: Record<string, string> = { pointerEvents: 'none' }
   if (isHorizontalSection.value) {
     // Inside the flex .horizontal-track: a full-height cell that also acts
     // as the positioning context for the absolutely-filled inner layer.

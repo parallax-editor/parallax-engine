@@ -33,7 +33,10 @@ const resolvedComponent = computed(() => {
 })
 
 const { style: animStyle } = useElementAnimations({
-  animations: props.element.animations,
+  // Reactive getter (merged source) so editing an element's animations updates
+  // the live preview without remounting the engine, and per-device animation
+  // overrides stay reactive.
+  animations: () => el.value.animations,
   sectionProgress,
   reducedMotion,
   elementRef,

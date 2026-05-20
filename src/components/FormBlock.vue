@@ -14,6 +14,7 @@ interface FormField {
 interface FormStyling {
   inputBg?: string
   inputBorder?: string
+  inputText?: string
   buttonBg?: string
   buttonText?: string
   fontFamily?: string
@@ -109,6 +110,7 @@ const formStyle = computed(() => {
   return {
     '--form-input-bg': s.inputBg,
     '--form-input-border': s.inputBorder,
+    '--form-input-text': s.inputText,
     '--form-button-bg': s.buttonBg,
     '--form-button-text': s.buttonText,
     '--form-font': s.fontFamily,
@@ -237,6 +239,7 @@ const formStyle = computed(() => {
   border: 1px solid var(--form-input-border, var(--color-ink, #ccc));
   border-radius: 6px;
   background: var(--form-input-bg, var(--color-paper, #fff));
+  color: var(--form-input-text, var(--color-ink, inherit));
   font-family: inherit;
   font-size: 14px;
 }

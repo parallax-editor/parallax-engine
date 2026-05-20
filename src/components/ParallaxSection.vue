@@ -54,14 +54,37 @@ provide('parallaxHorizontalSection', isHorizontal)
 const outerStyle = computed(() => {
   const style: Record<string, string> = {}
   if (isPinned.value) {
-    // Outer wrapper: full scrollable height
+    // Outer wrapper: full scrollable height. It MUST stay overflow:visible —
+    // the inner is `position:sticky` and travels through this taller box; an
+    // `overflow:hidden`/`clip` here would create a scroll container that pins
+    // the sticky to the top of the wrapper instead of the viewport (the sticky
+    // would never engage). The wrapper does NOT need to clip: its only child is
+    // the sticky inner, which clips itself (see sectionStyle), so nothing can
+    // bleed out through the wrapper. Set it explicitly so a consumer's global
+    // rule cannot accidentally turn it into a clipping scroll container.
     style.height = props.section.height
     style.position = 'relative'
+    style.overflow = 'visible'
   }
   return style
 })
 
 const sectionStyle = computed(() => {
+  // `overflow:hidden` is the load-bearing CLIP: every section confines its own
+  // layers/elements to the section box so an oversized full-bleed image or an
+  // element dragged past the section margin is clipped at the section edge and
+  // can never paint into a neighboring section. Applied inline (not only via
+  // the scoped stylesheet) so the clip holds even if a consumer forgets to
+  // import the engine's style.css, and so it always wins over consumer CSS.
+  //
+  //   - continuous / snap : the section box is `section.height`; the layers
+  //     translate WITHIN it (standard parallax-stage clipping).
+  //   - pinned            : the section box is the 100vh STICKY stage, so the
+  //     clip is exactly the viewport the content is pinned to (NOT the taller
+  //     outer wrapper — see outerStyle); the sticky still travels normally.
+  //   - horizontal        : the inner `.horizontal-track` (200vw of flex cells
+  //     translated by translateX) overflows horizontally; this clip is what
+  //     turns that into the horizontal reveal AND contains any vertical bleed.
   const style: Record<string, string> = {
     position: 'relative',
     overflow: 'hidden',
@@ -129,5 +152,11 @@ const sectionStyle = computed(() => {
 <style scoped>
 .parallax-section {
   width: 100%;
+  /* Baseline clip (the inline `overflow:hidden` in sectionStyle is the
+     load-bearing one and always wins; this mirrors it declaratively so the
+     invariant is visible in the stylesheet and survives if the inline style is
+     ever refactored). Each section confines its own content to the section box
+     so nothing bleeds into adjacent sections. */
+  overflow: hidden;
 }
 </style>

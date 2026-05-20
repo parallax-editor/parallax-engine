@@ -85,3 +85,66 @@ describe('FormBlock validation', () => {
     expect(Object.keys(errors)).toHaveLength(0)
   })
 })
+
+// Mirrors the `formStyle` computed in FormBlock.vue exactly. Keeps the
+// styling -> CSS-var mapping under test without a DOM/component renderer
+// (the test setup has no @vue/test-utils / jsdom).
+interface FormStyling {
+  inputBg?: string
+  inputBorder?: string
+  inputText?: string
+  buttonBg?: string
+  buttonText?: string
+  fontFamily?: string
+}
+function formStyle(styling?: FormStyling): Record<string, string | undefined> {
+  const s = styling
+  if (!s) return {}
+  return {
+    '--form-input-bg': s.inputBg,
+    '--form-input-border': s.inputBorder,
+    '--form-input-text': s.inputText,
+    '--form-button-bg': s.buttonBg,
+    '--form-button-text': s.buttonText,
+    '--form-font': s.fontFamily,
+  }
+}
+
+describe('FormBlock styling.inputText', () => {
+  it('maps styling.inputText to the --form-input-text CSS var', () => {
+    const style = formStyle({ inputText: '#ff0000' })
+    expect(style['--form-input-text']).toBe('#ff0000')
+  })
+
+  it('leaves --form-input-text undefined when inputText is absent (CSS fallback applies)', () => {
+    const style = formStyle({ inputBg: '#fff', buttonBg: '#000' })
+    expect(style['--form-input-text']).toBeUndefined()
+    // Other keys behave exactly as before — no behavior change for existing FormBlocks.
+    expect(style['--form-input-bg']).toBe('#fff')
+    expect(style['--form-button-bg']).toBe('#000')
+  })
+
+  it('produces an empty style object when styling is absent (byte-identical to before)', () => {
+    expect(formStyle(undefined)).toEqual({})
+    expect('--form-input-text' in formStyle(undefined)).toBe(false)
+  })
+
+  it('does not affect the other existing styling keys', () => {
+    const style = formStyle({
+      inputBg: '#111',
+      inputBorder: '#222',
+      inputText: '#333',
+      buttonBg: '#444',
+      buttonText: '#555',
+      fontFamily: 'Inter',
+    })
+    expect(style).toEqual({
+      '--form-input-bg': '#111',
+      '--form-input-border': '#222',
+      '--form-input-text': '#333',
+      '--form-button-bg': '#444',
+      '--form-button-text': '#555',
+      '--form-font': 'Inter',
+    })
+  })
+})

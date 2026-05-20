@@ -3,7 +3,7 @@ import { computed, ref, inject, type Ref } from 'vue'
 import type { PngElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit, resolveElementPosition } from '../../utils/units'
+import { resolveUnit, resolveElementPosition, resolveAnchorObjectPosition, isElementInteractive } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
 import ElementLink from './ElementLink.vue'
 
@@ -17,20 +17,45 @@ const device = inject<Ref<DeviceType>>('parallaxDevice', ref('desktop'))
 const el = computed(() => mergeResponsiveOverrides(props.element, device.value))
 
 const { style: animStyle } = useElementAnimations({
-  animations: props.element.animations,
+  // Reactive getter (merged source) so editing an element's animations updates
+  // the live preview without remounting the engine, and per-device animation
+  // overrides stay reactive.
+  animations: () => el.value.animations,
   sectionProgress,
   reducedMotion,
   elementRef,
   elementId: props.element.id,
 })
 
-const isInteractive = computed(() => el.value.interactive || !!el.value.link)
+// Single source of truth (utils/isElementInteractive): a hover/click animation
+// makes the element pointer-events:auto even with interactive:false and no link.
+const isInteractive = computed(() =>
+  isElementInteractive({
+    interactive: el.value.interactive,
+    link: el.value.link,
+    animations: el.value.animations,
+  }),
+)
 
 const positionStyle = computed(() => {
   const e = el.value
   const base: Record<string, string | number> = resolveElementPosition(e)
-  if (e.size?.width != null) base.width = resolveUnit(e.size.width)
-  if (e.size?.height != null) base.height = resolveUnit(e.size.height)
+  const hasWidth = e.size?.width != null
+  const hasHeight = e.size?.height != null
+  if (hasWidth) base.width = resolveUnit(e.size!.width!)
+  if (hasHeight) base.height = resolveUnit(e.size!.height!)
+  // When the author sizes the image (e.g. a full-bleed background:
+  // size {100%,100%}, pos {0,0}, anchor top-left), the <img> box is the
+  // intended box but a replaced element with an explicit size defaults to
+  // object-fit:fill (distorts) — and with only one axis set it keeps its
+  // intrinsic aspect (letterboxes/overflows, never covers). Default sized
+  // png to object-fit:cover so the photo fills the box edge-to-edge with no
+  // distortion, and object-position from the anchor so a non-centered anchor
+  // crops toward the anchored side. Unsized png keep natural rendering.
+  if (hasWidth || hasHeight) {
+    base.objectFit = 'cover'
+    base.objectPosition = resolveAnchorObjectPosition(e.anchor)
+  }
   if (e.opacity !== 1) base.opacity = e.opacity
   if (e.rotation !== 0) base.transform += ` rotate(${e.rotation}deg)`
   return base

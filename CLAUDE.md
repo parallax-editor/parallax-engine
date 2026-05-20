@@ -49,3 +49,7 @@ Los 3 repos consumidores declaran `"parallax-engine": "link:../parallax-engine"`
 ## Schema v1.0
 
 El schema se define completo en `src/schema.ts`. Es additive-only — todos los campos nuevos son opcionales y backwards-compatible. No subir a v2 sin migración planificada.
+
+## Git hooks
+
+Hook `pre-commit` versionado en `hooks/pre-commit`, activado con `git config --local core.hooksPath hooks` (config local del repo; el hook vive en el árbol). En cada `git commit` corre, en orden: `yarn lint` **si** existe el script `lint` en `package.json` (hoy no existe → se omite con nota), `yarn typecheck` (vue-tsc) y `yarn test` (Vitest, offline). Cualquier fallo → commit bloqueado con mensaje claro en español. Emergencia: `git commit --no-verify`. El auto-commit-on-save del editor pasa `--no-verify` a propósito (ver `parallax-editor`), así que nunca dispara este hook.

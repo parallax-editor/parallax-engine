@@ -58,6 +58,22 @@ export function resolveAnchorOrigin(anchor?: string): string {
 }
 
 /**
+ * `object-position` per anchor, for replaced elements (PngElement's <img>)
+ * that are given an explicit size and therefore use `object-fit: cover`.
+ * `cover` scales the image to fill the box and crops the overflow; the crop
+ * should keep the side the author anchored to. So `top-left` keeps the
+ * top-left of the photo (`0% 0%`), `bottom-right` keeps the bottom-right
+ * (`100% 100%`), `center` keeps the center (`50% 50%`), etc. Derived from the
+ * SAME ANCHOR_OFFSETS table so it can never drift from the placement geometry:
+ * the offset `-50%/-100%/0%` maps to position `50%/100%/0%` on each axis —
+ * identical mapping to `resolveAnchorOrigin`.
+ */
+export function resolveAnchorObjectPosition(anchor?: string): string {
+  const [ox, oy] = resolveAnchorOffset(anchor)
+  return `${ox.replace('-', '')} ${oy.replace('-', '')}`
+}
+
+/**
  * The browser user-agent default box of a semantic text tag (e.g. <h1> has
  * margin-block ≈ 0.67em). Left in place this margin shifts the text box and
  * effectively cancels the vertical anchor translate, so an `anchor:center`
@@ -90,4 +106,31 @@ export function resolveElementPosition(el: {
     transform: `translate(${ox}, ${oy})`,
     transformOrigin: resolveAnchorOrigin(el.anchor),
   }
+}
+
+/**
+ * Centralized "is this element interactive?" rule (single source of truth so
+ * Text/Png/etc. never drift apart again).
+ *
+ * An element must be hit-testable (pointer-events:auto) when ANY of:
+ *  - it is explicitly `interactive: true`, or
+ *  - it carries a `link` (the wrapping <a> must receive the click), or
+ *  - it has at least one animation whose trigger is `hover` or `click`.
+ *
+ * The last clause is the fix for the "hover/click animation never fires"
+ * bug: an element with `interactive:false` and no link but a `hover`/`click`
+ * animation was rendered pointer-events:none, so the mouseenter/click that the
+ * animation listens for could never reach it. The animation's own listeners
+ * (attached in useElementAnimations) are inert without it.
+ */
+export function isElementInteractive(el: {
+  interactive?: boolean
+  link?: unknown
+  animations?: { trigger?: string }[]
+}): boolean {
+  if (el.interactive) return true
+  if (el.link) return true
+  const anims = el.animations
+  if (anims && anims.some((a) => a.trigger === 'hover' || a.trigger === 'click')) return true
+  return false
 }

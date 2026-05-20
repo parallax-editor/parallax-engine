@@ -1,0 +1,44 @@
+#!/bin/sh
+# pre-commit — parallax-engine
+#
+# Corre lint (si existe) + typecheck + tests Vitest (offline, rápido) antes de
+# permitir el commit. Si algo falla, el commit se BLOQUEA con un mensaje claro.
+#
+# Activado vía: git config --local core.hooksPath hooks  (versionado en el repo)
+# Saltar en emergencia: git commit --no-verify
+# El auto-commit del editor pasa --no-verify a propósito (autosave instantáneo).
+set -e
+
+# Ir a la raíz del repo (el hook puede invocarse desde un subdirectorio).
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
+echo "[pre-commit parallax-engine] verificando antes del commit…"
+
+# ── lint (solo si el script existe en package.json) ────────────────────────
+if node -e "process.exit(require('./package.json').scripts && require('./package.json').scripts.lint ? 0 : 1)" 2>/dev/null; then
+  echo "[pre-commit] → yarn lint"
+  if ! yarn --silent lint; then
+    echo "[pre-commit] ❌ BLOQUEADO: 'yarn lint' falló en parallax-engine. Corrige el lint o usa 'git commit --no-verify' solo en emergencia." >&2
+    exit 1
+  fi
+else
+  echo "[pre-commit] (sin script 'lint' en package.json — se omite)"
+fi
+
+# ── typecheck (vue-tsc) ────────────────────────────────────────────────────
+echo "[pre-commit] → yarn typecheck"
+if ! yarn --silent typecheck; then
+  echo "[pre-commit] ❌ BLOQUEADO: 'yarn typecheck' falló en parallax-engine (errores de tipos). Corrígelos o usa 'git commit --no-verify' solo en emergencia." >&2
+  exit 1
+fi
+
+# ── tests (Vitest, offline) ────────────────────────────────────────────────
+echo "[pre-commit] → yarn test"
+if ! yarn --silent test; then
+  echo "[pre-commit] ❌ BLOQUEADO: 'yarn test' falló en parallax-engine (Vitest). Corrige los tests o usa 'git commit --no-verify' solo en emergencia." >&2
+  exit 1
+fi
+
+echo "[pre-commit parallax-engine] ✅ todo verde — commit permitido."
+exit 0

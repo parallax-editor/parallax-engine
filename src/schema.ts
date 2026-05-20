@@ -32,6 +32,7 @@ export const ELEMENT_TYPES = ['png', 'text', 'component', 'audio', 'video'] as c
 export const ANCHOR_TYPES = ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'top', 'bottom', 'left', 'right'] as const
 export const SEMANTIC_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'] as const
 export const SPLIT_MODES = ['none', 'words', 'chars', 'lines'] as const
+export const TEXT_ALIGN = ['left', 'center', 'right', 'justify'] as const
 export const DEPENDS_EVENTS = ['hover', 'click', 'enter'] as const
 
 export const ANIMATION_TYPES = [
@@ -146,6 +147,9 @@ export const textElementSchema = z.object({
   color: z.string().optional(),
   letterSpacing: z.string().optional(),
   lineHeight: z.string().optional(),
+  // v1.1 additive: optional CSS text-align. Absent = current rendering
+  // (no text-align forced). No default so existing content is byte-identical.
+  textAlign: z.enum(TEXT_ALIGN).optional(),
   semanticTag: z.enum(SEMANTIC_TAGS).default('p'),
   splitMode: z.enum(SPLIT_MODES).default('none'),
   staggerDelay: z.number().min(0).default(0),
