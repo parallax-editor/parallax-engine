@@ -5,6 +5,13 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [vue()],
   build: {
+    // NO vaciar dist/ en cada build. Las declaraciones (.d.ts) las emite
+    // `vue-tsc --emitDeclarationOnly` en un paso aparte; si vite limpiara dist
+    // en cada rebuild del watch (`yarn dev` = vite build --watch), borraría esos
+    // .d.ts y los consumidores se quedarían sin tipos (yarn typecheck roto). Con
+    // emptyOutDir:false el watch solo reescribe los .js y conserva los .d.ts. El
+    // `yarn build` completo hace `rm -rf dist` antes para una build limpia.
+    emptyOutDir: false,
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),

@@ -23,8 +23,8 @@
     "./style.css": "./dist/style.css"
   },
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "dev": "vue-tsc -p tsconfig.build.json --emitDeclarationOnly; vite build --watch",
+    "build": "rm -rf dist && vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly",
     "typecheck": "vue-tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
