@@ -46,9 +46,15 @@ yarn typecheck  # vue-tsc --noEmit
 
 Los 3 repos consumidores declaran `"parallax-engine": "link:../parallax-engine"` en package.json. `yarn install` crea el symlink automáticamente. Los consumidores necesitan `vite.resolve.dedupe: ['vue']` para evitar doble instancia.
 
-## Schema v1.0
+## Schema v1.1
 
-El schema se define completo en `src/schema.ts`. Es additive-only — todos los campos nuevos son opcionales y backwards-compatible. No subir a v2 sin migración planificada.
+El schema se define completo en `src/schema.ts`. Es additive-only — todos los campos nuevos son opcionales y backwards-compatible. v1.1 añade `views` (árboles desktop/mobile independientes); v1.0 sigue 100% válido. No subir a v2 sin migración planificada.
+
+## Doc de IA — `ai/contract.md` (FUENTE DE VERDAD para LLMs)
+
+`ai/contract.md` es el **contrato de autoría de `site.json` auto-contenido** que el editor inyecta en cada `claude -p`. Gracias a esto los repos de contenido (eventos / portafolio / un tercero) **ya NO llevan ningún skill** — el editor + el engine son la única fuente. El editor lo empaqueta en su bundle (`parallax-editor/scripts/embed-contract.mjs`), así que funciona aunque el repo del engine no esté en la máquina de Daniela.
+
+**REGLA DE MANTENIMIENTO (obligatoria):** **siempre que modifiques el engine** — especialmente `src/schema.ts`, `src/config.ts` (editableProps), o cualquier feature/comportamiento que afecte cómo se escribe un `site.json` — **revisa si hay que ajustar `ai/contract.md` y actualízalo en el MISMO commit.** Hay un test (`tests/contract-doc.test.ts`) que falla si la doc se desincroniza de la versión del schema o de los enums (tipos de elemento, animación, triggers, easing, transiciones); pero la prosa y los ejemplos los mantienes tú.
 
 ## Git hooks
 

@@ -6,7 +6,8 @@
   "type": "module",
   "license": "UNLICENSED",
   "files": [
-    "dist"
+    "dist",
+    "ai"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
