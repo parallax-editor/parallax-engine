@@ -116,7 +116,7 @@ const toStyle = computed(() => {
 </script>
 
 <template>
-  <div class="world-transition" style="position: relative; overflow: hidden;">
+  <div class="world-transition" style="position: relative; overflow: hidden; min-height: 100vh;">
     <!-- Outgoing world -->
     <div v-if="from && phase === 'transitioning'" :style="fromStyle">
       <slot name="from" />

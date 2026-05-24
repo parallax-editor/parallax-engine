@@ -19,8 +19,15 @@ const props = withDefaults(defineProps<{
   site: Site
   mode?: 'dev' | 'prod'
   components?: Record<string, Component>
+  // Cuando es true, el engine se renderiza en estado "estático": sin animaciones
+  // (enter/scroll/loop/hover…), sin parallax y con el texto split totalmente
+  // revelado — exactamente la ruta de `prefers-reduced-motion`. Lo usa el CANVAS
+  // del editor en modo EDICIÓN, donde las animaciones solo distraen y dificultan
+  // el posicionamiento; en Preview / Vista en vivo va false y todo anima normal.
+  staticMotion?: boolean
 }>(), {
   mode: import.meta.env.DEV ? 'dev' : 'prod',
+  staticMotion: false,
 })
 
 // Navegación in-engine a otro sitio (link.site). Al click en un elemento con
@@ -61,7 +68,11 @@ provide('parallaxQuality', qualityTier)
 
 // ─── Reduced motion ────────────────────────────────────────────────────────────
 
-const reducedMotion = useReducedMotion()
+// `reducedMotion` efectivo = preferencia del sistema OR el modo estático del
+// editor. Computado (no el ref crudo) para que activar/desactivar staticMotion
+// se propague reactivamente a todos los elementos/capas que lo inyectan.
+const systemReducedMotion = useReducedMotion()
+const reducedMotion = computed(() => props.staticMotion || systemReducedMotion.value)
 provide('reducedMotion', reducedMotion)
 
 // ─── Mouse tracking ───────────────────────────────────────────────────────────
