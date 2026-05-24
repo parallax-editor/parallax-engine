@@ -105,10 +105,18 @@ const elementOverridesSchema = z.object({
 export const LINK_TARGETS = ['_blank', '_self', '_parent', '_top'] as const
 
 const linkSchema = z.object({
-  href: z.string(),
+  // href para enlace externo/URL. Opcional: un link puede ser navegación interna
+  // (`site`) en vez de un href.
+  href: z.string().optional(),
   target: z.enum(LINK_TARGETS).default('_blank'),
   rel: z.string().optional(),
   ariaLabel: z.string().optional(),
+  // v1.1 aditivo — navegación IN-ENGINE a otro sitio del MISMO deploy: el slug
+  // destino. Cuando está presente y el sitio corre en mode "prod", al hacer
+  // click el engine emite `navigate(slug)` (ParallaxSite) en vez de seguir un
+  // href; el consumidor carga ese site.json y transiciona en vivo (WorldTransition),
+  // sin recargar la página.
+  site: z.string().optional(),
 })
 
 // ─── Common element fields ─────────────────────────────────────────────────────

@@ -23,6 +23,14 @@ const props = withDefaults(defineProps<{
   mode: import.meta.env.DEV ? 'dev' : 'prod',
 })
 
+// Navegación in-engine a otro sitio (link.site). Al click en un elemento con
+// link.site (SOLO en mode "prod"), el engine emite `navigate` con el slug
+// destino; el consumidor carga ese site.json y transiciona (WorldTransition),
+// sin recargar la página. En "dev" (editor) no navega: el elemento es editable.
+const emit = defineEmits<{ navigate: [slug: string] }>()
+provide('parallaxMode', props.mode)
+provide('parallaxNavigate', (slug: string) => emit('navigate', slug))
+
 // ─── Scroll state ──────────────────────────────────────────────────────────────
 
 const scrollY = ref(0)
