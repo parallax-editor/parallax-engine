@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveUnit, resolvePosition, resolveSize } from '../src/utils/units'
+import { resolveUnit, resolvePosition, resolveSize, resolveAssetUrl, isRelativeAssetPath } from '../src/utils/units'
 
 describe('resolveUnit', () => {
   it('converts number to percentage string', () => {
@@ -36,5 +36,42 @@ describe('resolveSize', () => {
 
   it('resolves full size with mixed types', () => {
     expect(resolveSize({ width: '50vw', height: 40 })).toEqual({ width: '50vw', height: '40%' })
+  })
+})
+
+describe('isRelativeAssetPath', () => {
+  it('treats bare paths as relative', () => {
+    expect(isRelativeAssetPath('images/foo.png')).toBe(true)
+    expect(isRelativeAssetPath('fonts/x.otf')).toBe(true)
+  })
+  it('treats http(s)/root/protocol-relative/data/blob as NOT relative', () => {
+    expect(isRelativeAssetPath('https://cdn.com/a.png')).toBe(false)
+    expect(isRelativeAssetPath('http://x/a.png')).toBe(false)
+    expect(isRelativeAssetPath('/content/s/images/a.png')).toBe(false)
+    expect(isRelativeAssetPath('//cdn/a.png')).toBe(false)
+    expect(isRelativeAssetPath('data:image/png;base64,AAAA')).toBe(false)
+    expect(isRelativeAssetPath('blob:abc')).toBe(false)
+  })
+})
+
+describe('resolveAssetUrl', () => {
+  it('prefixes a relative path with the assetBase (one slash)', () => {
+    expect(resolveAssetUrl('/content/home/', 'images/a.png')).toBe('/content/home/images/a.png')
+    // base sin barra final + src relativo → exactamente UNA barra entre ambos
+    expect(resolveAssetUrl('/content/home', 'images/a.png')).toBe('/content/home/images/a.png')
+  })
+  it('leaves non-relative paths untouched regardless of base', () => {
+    expect(resolveAssetUrl('/content/home/', 'https://cdn/a.png')).toBe('https://cdn/a.png')
+    expect(resolveAssetUrl('/content/home/', '/already/abs.png')).toBe('/already/abs.png')
+    expect(resolveAssetUrl('/content/home/', 'data:image/png;base64,AA')).toBe('data:image/png;base64,AA')
+  })
+  it('without assetBase returns the path verbatim (backwards-compatible)', () => {
+    expect(resolveAssetUrl('', 'images/a.png')).toBe('images/a.png')
+    expect(resolveAssetUrl(undefined, 'images/a.png')).toBe('images/a.png')
+  })
+  it('handles empty/nullish src', () => {
+    expect(resolveAssetUrl('/content/home/', '')).toBe('')
+    expect(resolveAssetUrl('/content/home/', null)).toBe('')
+    expect(resolveAssetUrl('/content/home/', undefined)).toBe('')
   })
 })

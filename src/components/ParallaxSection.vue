@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, provide, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import type { Section } from '../schema'
+import { resolveAssetUrl } from '../utils/units'
 import ParallaxLayer from './ParallaxLayer.vue'
 
 const props = defineProps<{ section: Section }>()
@@ -9,6 +10,12 @@ const sectionRef = ref<HTMLElement | null>(null)
 const innerRef = ref<HTMLElement | null>(null)
 const scrollY = inject<Ref<number>>('parallaxScrollY', ref(0))
 const viewportHeight = inject<Ref<number>>('parallaxViewportHeight', ref(800))
+// Disparador adicional de recálculo: se bumpea ante CUALQUIER scroll (incluido
+// el contenedor interno del editor, donde scrollY/Lenis se quedan en 0). Ver
+// ParallaxSite.onAnyScroll. Sin esto, el Preview del editor no anima por scroll.
+const scrollNonce = inject<Ref<number>>('parallaxScrollNonce', ref(0))
+// Base de assets (#assetBase): el fondo tipo imagen resuelve su ruta relativa.
+const assetBase = inject<Ref<string>>('parallaxAssetBase', ref(''))
 
 const isVisible = ref(false)
 let observer: IntersectionObserver | null = null
@@ -41,6 +48,7 @@ onUnmounted(() => {
  */
 const sectionProgress = computed(() => {
   void scrollY.value
+  void scrollNonce.value // recalcula también ante scroll de contenedores anidados (editor)
   if (!isVisible.value || !sectionRef.value) return 0
   const rect = sectionRef.value.getBoundingClientRect()
   const totalTravel = viewportHeight.value + rect.height
@@ -110,7 +118,8 @@ const sectionStyle = computed(() => {
     } else if (bg.type === 'gradient') {
       style.background = bg.value
     } else if (bg.type === 'image') {
-      style.backgroundImage = `url(${bg.value})`
+      // #assetBase: el fondo tipo imagen también resuelve su ruta relativa.
+      style.backgroundImage = `url(${resolveAssetUrl(assetBase.value, bg.value)})`
       style.backgroundSize = 'cover'
       style.backgroundPosition = 'center'
     }

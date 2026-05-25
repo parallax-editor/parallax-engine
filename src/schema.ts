@@ -33,6 +33,7 @@ export const ANCHOR_TYPES = ['center', 'top-left', 'top-right', 'bottom-left', '
 export const SEMANTIC_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'] as const
 export const SPLIT_MODES = ['none', 'words', 'chars', 'lines'] as const
 export const TEXT_ALIGN = ['left', 'center', 'right', 'justify'] as const
+export const OBJECT_FIT = ['cover', 'contain', 'fill', 'none', 'scale-down'] as const
 export const DEPENDS_EVENTS = ['hover', 'click', 'enter'] as const
 
 export const ANIMATION_TYPES = [
@@ -128,6 +129,10 @@ const elementCommon = {
   anchor: z.enum(ANCHOR_TYPES).default('center'),
   opacity: z.number().min(0).max(1).default(1),
   rotation: z.number().default(0),
+  // Espejo del elemento (v1.1 additive, opcional). flipX = horizontal,
+  // flipY = vertical. Sin default → ausente = sin voltear (byte-idéntico).
+  flipX: z.boolean().optional(),
+  flipY: z.boolean().optional(),
   visible: z.boolean().default(true),
   interactive: z.boolean().default(false),
   link: linkSchema.optional(),
@@ -143,6 +148,9 @@ export const pngElementSchema = z.object({
   ...elementCommon,
   src: z.string(),
   alt: z.string().optional(),
+  // Modo de relleno cuando la imagen tiene tamaño (v1.1 additive, opcional).
+  // Sin valor = "cover" (comportamiento actual). "fill" estira (rompe proporción).
+  objectFit: z.enum(OBJECT_FIT).optional(),
 })
 
 export const textElementSchema = z.object({

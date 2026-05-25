@@ -7,6 +7,61 @@ export function resolveUnit(value: number | string): string {
   return typeof value === 'number' ? `${value}%` : value
 }
 
+/**
+ * ¿La ruta de un asset es RELATIVA? (la única que hay que resolver contra el
+ * assetBase). Absolutas (http/https), root-relativas (`/…`), protocol-relative
+ * (`//…`) y `data:`/`blob:` se dejan EXACTAMENTE como están.
+ */
+export function isRelativeAssetPath(src: string): boolean {
+  return (
+    !!src &&
+    !/^https?:\/\//i.test(src) &&
+    !src.startsWith('//') &&
+    !src.startsWith('/') &&
+    !src.startsWith('data:') &&
+    !src.startsWith('blob:')
+  )
+}
+
+// Aviso de "lo pida" (#assetBase): si un site trae rutas RELATIVAS pero el
+// consumidor no pasó `assetBase`, el engine no sabe dónde viven los assets y se
+// romperían (404). En DEV avisamos UNA vez con instrucciones claras; en prod
+// callamos (degradamos a la ruta verbatim, que es el comportamiento histórico).
+let warnedMissingAssetBase = false
+function warnMissingAssetBase(src: string): void {
+  if (warnedMissingAssetBase) return
+  warnedMissingAssetBase = true
+  // import.meta.env.DEV no existe fuera de Vite/build; protegido para SSR/tests.
+  const isDev = typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV
+  if (!isDev) return
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[parallax-engine] El site usa rutas de assets RELATIVAS (ej. "${src}") pero ` +
+      'no se pasó la prop `assetBase` a <ParallaxSite>. Esas rutas se usarán tal cual y ' +
+      'probablemente fallen (404). Pasa assetBase="/content/<slug>/" (o el prefijo donde ' +
+      'sirves los assets de ese site) para que el engine las resuelva.',
+  )
+}
+
+/**
+ * Resuelve la ruta de un asset (`src`, `url`, `poster`, fondo…) contra el
+ * `assetBase` del site. El ENGINE es autosuficiente: el consumidor solo declara
+ * DÓNDE viven los assets (assetBase) y el engine prefija las rutas relativas; no
+ * necesita reescribir el site.json. Additive/backwards-compatible: sin assetBase,
+ * devuelve la ruta verbatim (comportamiento previo intacto) y, en dev, avisa.
+ * Las rutas no-relativas (http/https//, `/…`, data:, blob:) pasan sin tocar.
+ */
+export function resolveAssetUrl(assetBase: string | undefined, src: string | undefined | null): string {
+  if (!src) return ''
+  if (!isRelativeAssetPath(src)) return src
+  if (!assetBase) {
+    warnMissingAssetBase(src)
+    return src
+  }
+  // Une base + src con UNA sola barra (la base puede o no terminar en `/`).
+  return `${assetBase.replace(/\/+$/, '')}/${src.replace(/^\/+/, '')}`
+}
+
 export function resolvePosition(pos: { x: number | string; y: number | string }): { left: string; top: string } {
   return {
     left: resolveUnit(pos.x),

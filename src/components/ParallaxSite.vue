@@ -10,6 +10,7 @@ import { useGyroscope } from '../composables/useGyroscope'
 import { useInteractionBus } from '../composables/useInteractionBus'
 import { useCursorEffect } from '../composables/useCursorEffect'
 import { resolveSections } from '../utils/views'
+import { resolveAssetUrl } from '../utils/units'
 import ParallaxSection from './ParallaxSection.vue'
 import ErrorOverlay from './ErrorOverlay.vue'
 import GyroscopePrompt from './GyroscopePrompt.vue'
@@ -25,9 +26,18 @@ const props = withDefaults(defineProps<{
   // del editor en modo EDICIÓN, donde las animaciones solo distraen y dificultan
   // el posicionamiento; en Preview / Vista en vivo va false y todo anima normal.
   staticMotion?: boolean
+  // Prefijo donde el consumidor sirve los assets de ESTE site (p. ej.
+  // "/content/<slug>/"). El engine resuelve contra él TODA ruta de asset
+  // RELATIVA del site.json — `png/video/audio.src`, `video.poster`, las URLs de
+  // fuentes custom y los fondos de sección tipo imagen — sin que el sitio tenga
+  // que reescribir el JSON. Additive: si se omite, las rutas se usan tal cual
+  // (comportamiento previo) y en dev se avisa. Rutas absolutas/`/`/data: nunca
+  // se tocan. Ver `resolveAssetUrl` y CLAUDE.md (§assets).
+  assetBase?: string
 }>(), {
   mode: import.meta.env.DEV ? 'dev' : 'prod',
   staticMotion: false,
+  assetBase: '',
 })
 
 // Navegación in-engine a otro sitio (link.site). Al click en un elemento con
@@ -48,10 +58,38 @@ let rafId: number | null = null
 provide('parallaxScrollY', scrollY)
 provide('parallaxViewportHeight', viewportHeight)
 
+// ─── Disparador de recálculo de progreso ante CUALQUIER scroll ─────────────────
+// sectionProgress se calcula con getBoundingClientRect() en vivo y usa `scrollY`
+// solo como disparador reactivo. En el sitio real el scroll es de `window`
+// (Lenis), pero en el PREVIEW del editor el scroll ocurre en un contenedor
+// interno y la ventana no tiene scroll → Lenis/scrollY se quedan en 0 → el
+// progreso nunca se recalcula y las animaciones por scroll se ven congeladas.
+// Escuchamos scroll en fase de CAPTURA (atrapa el scroll de cualquier contenedor
+// anidado, incluido el del editor) y bumpeamos un nonce que sectionProgress lee
+// → recálculo desde los rects vivos. En el sitio real es un disparo redundante e
+// inofuensivo; en el editor hace que el Preview anime como el sitio publicado.
+const scrollNonce = ref(0)
+provide('parallaxScrollNonce', scrollNonce)
+let scrollNonceScheduled = false
+function onAnyScroll() {
+  if (scrollNonceScheduled) return
+  scrollNonceScheduled = true
+  requestAnimationFrame(() => {
+    scrollNonceScheduled = false
+    scrollNonce.value++
+  })
+}
+
 // ─── Device + responsive ───────────────────────────────────────────────────────
 
 const device = useResponsive()
 provide('parallaxDevice', device)
+
+// ─── Base de assets (#assetBase) ───────────────────────────────────────────────
+// Se inyecta (computed) para que png/video/audio/section resuelvan sus rutas
+// relativas contra ella sin que el consumidor reescriba el site.json.
+const assetBase = computed(() => props.assetBase || '')
+provide('parallaxAssetBase', assetBase)
 
 // ─── Resolved sections (v1.1 views OR legacy single tree) ──────────────────────
 // `resolveSections` returns the legacy `site.sections` verbatim when `views` is
@@ -149,7 +187,7 @@ function injectFonts() {
       if (existing) continue
       const style = document.createElement('style')
       style.setAttribute('data-parallax-font', font.family)
-      style.textContent = `@font-face { font-family: '${font.family}'; src: url('${font.url}'); font-display: swap; }`
+      style.textContent = `@font-face { font-family: '${font.family}'; src: url('${resolveAssetUrl(props.assetBase, font.url)}'); font-display: swap; }`
       document.head.appendChild(style)
     }
   }
@@ -188,6 +226,9 @@ onMounted(() => {
   injectFonts()
   updateViewport()
   window.addEventListener('resize', updateViewport, { passive: true })
+  // Captura: atrapa el scroll de CUALQUIER contenedor (window o el frame interno
+  // del editor) para recalcular el progreso de las secciones. Ver onAnyScroll.
+  window.addEventListener('scroll', onAnyScroll, { capture: true, passive: true })
   initLenis()
 })
 
@@ -196,6 +237,7 @@ onUnmounted(() => {
   lenis?.destroy()
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', updateViewport)
+    window.removeEventListener('scroll', onAnyScroll, { capture: true } as any)
   }
 })
 </script>

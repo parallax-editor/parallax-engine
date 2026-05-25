@@ -42,6 +42,15 @@ yarn typecheck  # vue-tsc --noEmit
 - **Custom cursor**: configurable color/size/blendMode
 - **Blend modes**: mix-blend-mode por layer
 
+## Assets — `assetBase` (el engine resuelve las rutas, NO el consumidor)
+
+El `site.json` guarda rutas de assets **relativas** y canónicas (`images/foo.png`, `fonts/x.otf`, `video.poster`, fondos de sección tipo imagen). **El engine es autosuficiente**: el consumidor solo declara DÓNDE sirve los assets de ese site pasando la prop **`assetBase`** a `<ParallaxSite>` (p. ej. `assetBase="/content/<slug>/"`), y el engine prefija TODA ruta relativa (`png/video/audio.src`, `video.poster`, `@font-face url` de fuentes custom y fondos de sección imagen) vía `resolveAssetUrl` (`utils/units.ts`). El consumidor **no** debe reescribir el `site.json`.
+
+- **Additive / backwards-compatible:** sin `assetBase`, las rutas se usan tal cual (comportamiento previo) y en **dev** el engine **avisa por consola** (`[parallax-engine] … no se pasó la prop assetBase…`) — "lo pida".
+- **Nunca toca** rutas no-relativas: `http(s)://`, root-relativas (`/…`), protocol-relative (`//…`), `data:` ni `blob:`.
+- **OG image / favicon** son meta de `<head>` (SEO) que el engine NO renderiza → eso lo sigue prefijando el consumidor en su capa de SEO.
+- Test: `tests/units.test.ts` cubre `resolveAssetUrl`/`isRelativeAssetPath`.
+
 ## Linking
 
 Los 3 repos consumidores declaran `"parallax-engine": "link:../parallax-engine"` en package.json. `yarn install` crea el symlink automáticamente. Los consumidores necesitan `vite.resolve.dedupe: ['vue']` para evitar doble instancia.

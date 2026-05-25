@@ -3,7 +3,7 @@ import { ref, computed, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import type { VideoElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit, resolveElementPosition } from '../../utils/units'
+import { resolveUnit, resolveElementPosition, resolveAssetUrl } from '../../utils/units'
 import UnmuteButton from '../UnmuteButton.vue'
 
 const props = defineProps<{ element: VideoElement }>()
@@ -11,6 +11,10 @@ const props = defineProps<{ element: VideoElement }>()
 const videoRef = ref<HTMLVideoElement | null>(null)
 const device = inject<Ref<DeviceType>>('parallaxDevice', ref('desktop'))
 const el = computed(() => mergeResponsiveOverrides(props.element, device.value))
+// Base de assets (#assetBase): el engine resuelve `src`/`poster` relativos.
+const assetBase = inject<Ref<string>>('parallaxAssetBase', ref(''))
+const resolvedSrc = computed(() => resolveAssetUrl(assetBase.value, el.value.src))
+const resolvedPoster = computed(() => (el.value.poster ? resolveAssetUrl(assetBase.value, el.value.poster) : undefined))
 
 const isVisible = ref(false)
 const isMuted = ref(true)
@@ -24,7 +28,7 @@ onMounted(() => {
       const wasVisible = isVisible.value
       isVisible.value = entries[0]?.isIntersecting ?? false
       if (isVisible.value && !wasVisible && videoRef.value) {
-        videoRef.value.src = el.value.src
+        videoRef.value.src = resolvedSrc.value
         if (el.value.autoplay) videoRef.value.play().catch(() => {})
       }
       if (!isVisible.value && wasVisible && videoRef.value) {
@@ -58,7 +62,7 @@ const positionStyle = computed(() => {
   <div v-if="el.visible !== false" :style="positionStyle" class="parallax-video-element">
     <video
       ref="videoRef"
-      :poster="el.poster"
+      :poster="resolvedPoster"
       :muted="el.muted !== false"
       :loop="el.loopMedia || false"
       :controls="el.controls || false"

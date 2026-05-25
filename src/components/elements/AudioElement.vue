@@ -3,7 +3,7 @@ import { ref, computed, inject, onMounted, onUnmounted, type Ref } from 'vue'
 import type { AudioElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit, resolveElementPosition } from '../../utils/units'
+import { resolveUnit, resolveElementPosition, resolveAssetUrl } from '../../utils/units'
 import UnmuteButton from '../UnmuteButton.vue'
 
 const props = defineProps<{ element: AudioElement }>()
@@ -11,6 +11,9 @@ const props = defineProps<{ element: AudioElement }>()
 const audioRef = ref<HTMLAudioElement | null>(null)
 const device = inject<Ref<DeviceType>>('parallaxDevice', ref('desktop'))
 const el = computed(() => mergeResponsiveOverrides(props.element, device.value))
+// Base de assets (#assetBase): el engine resuelve `src` relativos.
+const assetBase = inject<Ref<string>>('parallaxAssetBase', ref(''))
+const resolvedSrc = computed(() => resolveAssetUrl(assetBase.value, el.value.src))
 
 const isVisible = ref(false)
 const isMuted = ref(true)
@@ -25,7 +28,7 @@ onMounted(() => {
       const wasVisible = isVisible.value
       isVisible.value = entries[0]?.isIntersecting ?? false
       if (isVisible.value && !wasVisible && audioRef.value) {
-        audioRef.value.src = el.value.src
+        audioRef.value.src = resolvedSrc.value
         if (el.value.autoplay) audioRef.value.play().catch(() => {})
       }
       // Pause when leaving viewport

@@ -3,7 +3,7 @@ import { computed, ref, inject, type Ref } from 'vue'
 import type { PngElement } from '../../schema'
 import type { DeviceType } from '../../composables/useResponsive'
 import { mergeResponsiveOverrides } from '../../composables/useResponsive'
-import { resolveUnit, resolveElementPosition, resolveAnchorObjectPosition, isElementInteractive } from '../../utils/units'
+import { resolveUnit, resolveElementPosition, resolveAnchorObjectPosition, isElementInteractive, resolveAssetUrl } from '../../utils/units'
 import { useElementAnimations } from '../../composables/useElementAnimations'
 import ElementLink from './ElementLink.vue'
 
@@ -13,6 +13,9 @@ const elementRef = ref<HTMLElement | null>(null)
 const sectionProgress = inject<Ref<number>>('sectionProgress', ref(0))
 const reducedMotion = inject<Ref<boolean>>('reducedMotion', ref(false))
 const device = inject<Ref<DeviceType>>('parallaxDevice', ref('desktop'))
+// Base de assets (#assetBase): el engine resuelve `src` relativos contra ella.
+const assetBase = inject<Ref<string>>('parallaxAssetBase', ref(''))
+const resolvedSrc = computed(() => resolveAssetUrl(assetBase.value, el.value.src))
 
 const el = computed(() => mergeResponsiveOverrides(props.element, device.value))
 
@@ -53,11 +56,19 @@ const positionStyle = computed(() => {
   // distortion, and object-position from the anchor so a non-centered anchor
   // crops toward the anchored side. Unsized png keep natural rendering.
   if (hasWidth || hasHeight) {
-    base.objectFit = 'cover'
+    // Relleno elegible (default cover). "fill" estira a la caja (rompe la
+    // proporción); "contain" encaja completa; etc. object-position desde el
+    // anchor solo aplica a cover/none/scale-down (en contain/fill no recorta).
+    base.objectFit = e.objectFit || 'cover'
     base.objectPosition = resolveAnchorObjectPosition(e.anchor)
   }
   if (e.opacity !== 1) base.opacity = e.opacity
   if (e.rotation !== 0) base.transform += ` rotate(${e.rotation}deg)`
+  // Espejo: scaleX(-1) voltea horizontal, scaleY(-1) vertical. Va DESPUÉS del
+  // rotate/translate y respeta el transform-origin del anchor (voltea sobre el
+  // punto de anclaje, no salta de lugar).
+  if (e.flipX) base.transform += ' scaleX(-1)'
+  if (e.flipY) base.transform += ' scaleY(-1)'
   return base
 })
 
@@ -78,7 +89,7 @@ const mergedStyle = computed(() => {
     <img
       ref="elementRef"
       :data-parallax-id="element.id"
-      :src="el.src"
+      :src="resolvedSrc"
       :alt="el.alt || ''"
       :style="mergedStyle"
       class="parallax-png-element"
