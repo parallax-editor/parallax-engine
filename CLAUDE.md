@@ -70,3 +70,27 @@ The schema is defined in full in `src/schema.ts`. It is additive-only — every 
 ## Git hooks
 
 Pre-commit hook versioned in `hooks/pre-commit`, activated with `git config --local core.hooksPath hooks` (local repo config; the hook lives in the tree). On every `git commit` it runs, in order: `yarn lint` **if** the `lint` script exists in `package.json` (today it does not → skipped with a note), `yarn typecheck` (vue-tsc), and `yarn test` (Vitest, offline). Any failure → commit blocked with a clear message. Emergency: `git commit --no-verify`. The editor's auto-commit-on-save passes `--no-verify` on purpose (see `parallax-editor`), so it never fires this hook.
+
+## Push discipline (MANDATORY)
+
+Before `git push` of anything that touches the CI surface — workflows
+(`.github/workflows/*`), `package.json`, `vite.config.ts`,
+`tsconfig*.json`, the dist layout, or the published `exports` map —
+**reproduce the CI shape locally and confirm it passes**. The user has
+been blocked by GitHub abuse detection from push-fail-push loops; one
+green run on `main` beats five red ones.
+
+Concretely:
+
+- Run `yarn typecheck && yarn test && yarn build` AND verify `ls dist/`
+  still matches the `exports` map (`./style.css` must exist as
+  `dist/style.css`, not `dist/parallax-engine.css`; Vite 6+ flipped the
+  default).
+- For Dependabot major bumps, install + run the full suite locally
+  BEFORE merging. Many bumps need a code change (e.g. `z.record(z.string(), z.unknown())`
+  for zod 4, `rootDir` for TS 6 emitDeclarationOnly).
+- For workflow `.yml` edits, read each `steps.<id>.outputs.*`
+  reference and make sure the upstream step has the matching `id:`.
+
+Batch related changes into one commit + one push. If you need a quick
+iteration loop, push to a feature branch first.
