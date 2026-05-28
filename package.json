@@ -53,12 +53,12 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.1.0",
-    "typescript": "~5.4.5",
-    "vite": "^5.4.0",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.14",
     "vitest": "^2.0.5",
     "vue": "^3.4.38",
-    "vue-tsc": "^2.0.29"
+    "vue-tsc": "^3.3.2"
   },
   "homepage": "https://github.com/parallax-editor/parallax-engine#readme",
   "repository": {
