@@ -1,18 +1,18 @@
-# Publishes @parallax-editor/parallax-engine to npm via npm Trusted Publishing
-# (OIDC), no long-lived NPM_TOKEN required.
+# Publishes @parallax-editor/parallax-engine to npm.
 #
-# Setup (one-time):
-#   1. npm UI → organization `parallax-editor` → Settings → Trusted Publishers
-#      → Add → GitHub Actions:
-#        - Repository:      parallax-editor/parallax-engine
-#        - Workflow:        publish.yml
-#        - Environment:     npm-publish
-#   2. GitHub UI → repo Settings → Environments → "New environment" → name it
-#      `npm-publish`. (Optional: add a required reviewer for extra gating.)
+# ── Bootstrap mode (current) ──────────────────────────────────────────────────
+# Uses an NPM_TOKEN secret because Trusted Publishing (OIDC) cannot be
+# configured on npm until the package exists. After the first successful
+# publish:
+#   1. Configure Trusted Publishing on the package
+#      (https://www.npmjs.com/package/@parallax-editor/parallax-engine/access
+#       → Trusted Publishers → Add → GitHub Actions, with workflow `publish.yml`
+#       and environment `npm-publish`).
+#   2. Delete the NPM_TOKEN secret from this repo.
+#   3. Switch this workflow to OIDC-only (remove the NODE_AUTH_TOKEN env block;
+#      keep `permissions.id-token: write` and `environment: npm-publish`).
 #
-# After that, pushing a `vX.Y.Z` tag publishes automatically. The OIDC token
-# is minted per-run, scoped to the workflow + environment + tag — no secret
-# to rotate, no token to leak.
+# See NPM_PUBLISHING.md for the full step-by-step.
 
 name: Publish to npm
 
@@ -34,10 +34,10 @@ jobs:
           node-version: 22
           cache: yarn
           registry-url: https://registry.npmjs.org
-      # npm 11.5.1+ supports OIDC Trusted Publishing. Node 22 ships with npm
-      # 10, so upgrade to the latest npm before publishing.
       - run: npm install -g npm@latest
       - run: yarn install --frozen-lockfile
       - run: yarn test
       - run: yarn build
       - run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
