@@ -1,5 +1,18 @@
-# Publishes parallax-engine to npm when a vX.Y.Z tag is pushed.
-# Requires NPM_TOKEN secret in the repo (Settings → Secrets and variables → Actions).
+# Publishes @parallax-editor/parallax-engine to npm via npm Trusted Publishing
+# (OIDC), no long-lived NPM_TOKEN required.
+#
+# Setup (one-time):
+#   1. npm UI → organization `parallax-editor` → Settings → Trusted Publishers
+#      → Add → GitHub Actions:
+#        - Repository:      parallax-editor/parallax-engine
+#        - Workflow:        publish.yml
+#        - Environment:     npm-publish
+#   2. GitHub UI → repo Settings → Environments → "New environment" → name it
+#      `npm-publish`. (Optional: add a required reviewer for extra gating.)
+#
+# After that, pushing a `vX.Y.Z` tag publishes automatically. The OIDC token
+# is minted per-run, scoped to the workflow + environment + tag — no secret
+# to rotate, no token to leak.
 
 name: Publish to npm
 
@@ -10,6 +23,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: npm-publish
     permissions:
       contents: read
       id-token: write
@@ -17,12 +31,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: yarn
           registry-url: https://registry.npmjs.org
+      # npm 11.5.1+ supports OIDC Trusted Publishing. Node 22 ships with npm
+      # 10, so upgrade to the latest npm before publishing.
+      - run: npm install -g npm@latest
       - run: yarn install --frozen-lockfile
       - run: yarn test
       - run: yarn build
-      - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --provenance
