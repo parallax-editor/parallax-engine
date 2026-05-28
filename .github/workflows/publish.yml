@@ -1,16 +1,12 @@
-# Publishes @parallax-editor/parallax-engine to npm.
+# Publishes @parallax-editor/parallax-engine to npm via Trusted Publishing
+# (OIDC). No long-lived NPM_TOKEN required — npm mints a short-lived token
+# per run, scoped to this workflow + environment + tag.
 #
-# ── Bootstrap mode (current) ──────────────────────────────────────────────────
-# Uses an NPM_TOKEN secret because Trusted Publishing (OIDC) cannot be
-# configured on npm until the package exists. After the first successful
-# publish:
-#   1. Configure Trusted Publishing on the package
-#      (https://www.npmjs.com/package/@parallax-editor/parallax-engine/access
-#       → Trusted Publishers → Add → GitHub Actions, with workflow `publish.yml`
-#       and environment `npm-publish`).
-#   2. Delete the NPM_TOKEN secret from this repo.
-#   3. Switch this workflow to OIDC-only (remove the NODE_AUTH_TOKEN env block;
-#      keep `permissions.id-token: write` and `environment: npm-publish`).
+# Setup (one-time, already done):
+#   - npm Trusted Publisher configured for the package, with workflow
+#     `publish.yml` and environment `npm-publish`.
+#   - npm Publishing access set to "require 2FA, disallow tokens".
+#   - GitHub environment `npm-publish` created on this repo.
 #
 # See NPM_PUBLISHING.md for the full step-by-step.
 
@@ -34,10 +30,9 @@ jobs:
           node-version: 22
           cache: yarn
           registry-url: https://registry.npmjs.org
+      # npm 11.5.1+ is required for OIDC Trusted Publishing.
       - run: npm install -g npm@latest
       - run: yarn install --frozen-lockfile
       - run: yarn test
       - run: yarn build
       - run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
