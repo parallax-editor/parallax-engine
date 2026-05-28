@@ -1,13 +1,29 @@
 {
   "name": "parallax-engine",
   "version": "0.1.0",
-  "description": "Engine de parallax compartido (Vue 3) + contrato de schema site.json. Núcleo del sistema de sitios de Daniela Reyes.",
-  "private": true,
+  "description": "Vue 3 engine for immersive parallax sites driven by a JSON schema. Core library of the Parallax system.",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-or-later",
+  "keywords": [
+    "parallax",
+    "vue",
+    "vue3",
+    "scroll",
+    "animation",
+    "immersive",
+    "schema"
+  ],
   "files": [
     "dist",
-    "ai"
+    "ai",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "**/*.css"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -43,5 +59,14 @@
     "vitest": "^2.0.5",
     "vue": "^3.4.38",
     "vue-tsc": "^2.0.29"
-  }
+  },
+  "homepage": "https://github.com/parallax-editor/parallax-engine#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/parallax-editor/parallax-engine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/parallax-editor/parallax-engine/issues"
+  },
+  "author": "Parallax Editor contributors"
 }

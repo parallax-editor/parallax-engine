@@ -136,7 +136,7 @@ describe('Schema addendum (hover/click/depends, clipPath, split, etc.)', () => {
           elements: [
             {
               type: 'text', content: 'Instagram', position: { x: 50, y: 90 },
-              link: { href: 'https://instagram.com/danielareyes', target: '_blank' },
+              link: { href: 'https://instagram.com/example', target: '_blank' },
             },
             {
               type: 'png', src: '/logo.png', position: { x: 10, y: 10 },
@@ -149,7 +149,7 @@ describe('Schema addendum (hover/click/depends, clipPath, split, etc.)', () => {
     expect(result.ok).toBe(true)
     if (result.ok) {
       const textEl = result.data.sections[0].layers[0].elements[0] as any
-      expect(textEl.link.href).toBe('https://instagram.com/danielareyes')
+      expect(textEl.link.href).toBe('https://instagram.com/example')
       expect(textEl.link.target).toBe('_blank')
     }
   })

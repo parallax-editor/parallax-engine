@@ -1,70 +1,72 @@
 # parallax-engine
 
-Engine de parallax compartido (Vue 3 library). Núcleo de todo el sistema de sitios de Daniela Reyes.
+Shared parallax engine (Vue 3 library). Core of the Parallax system (engine + editor + consumers).
 
-## Comandos
+## Commands
 
 ```bash
-yarn dev        # Watch build (recompila al guardar, output en dist/)
-yarn build      # Build completo: vite build + vue-tsc declarations
-yarn test       # 76 unit tests con Vitest
+yarn dev        # watch build (rebuilds on save, output in dist/)
+yarn build      # full build: vite build + vue-tsc declarations
+yarn test       # Vitest unit tests
 yarn typecheck  # vue-tsc --noEmit
 ```
 
 ## Exports
 
-- `parallax-engine` — componentes Vue, composables, utils, config helper
-- `parallax-engine/schema` — Zod schema + tipos TypeScript (sin dependencia de Vue)
+- `parallax-engine` — Vue components, composables, utils, config helper
+- `parallax-engine/schema` — Zod schema + TypeScript types (no Vue dependency)
 
-## Arquitectura
+## Architecture
 
-- `src/schema.ts` — **EL CONTRATO SAGRADO (§4)**. Todos los repos respetan este schema. Cambios aquí rompen los 4 repos.
+- `src/schema.ts` — **THE SACRED CONTRACT (§4)**. Every consumer respects this schema. Changes here ripple through every consumer.
 - `src/components/` — ParallaxSite, ParallaxSection, ParallaxLayer, elements (Png, Text, Component, Audio, Video), FormBlock, WorldTransition, ErrorOverlay, GyroscopePrompt, CustomCursor, UnmuteButton
 - `src/composables/` — useScrollProgress, useElementAnimations, useReducedMotion, useErrorHandler, useResponsive, useQualityTier, useMouseTracking, useGyroscope, useInteractionBus, useCursorEffect
-- `src/config.ts` — `defineParallaxConfig()` para registro de componentes custom
+- `src/config.ts` — `defineParallaxConfig()` for registering custom components
 - `src/utils/` — ids (auto-assign), units (number→%, string→as-is)
-- `tests/` — 11 suites, 76 tests
+- `tests/` — Vitest suites
 
-## Features del engine
+## Engine features
 
 - **Parallax**: scroll-vertical, scroll-horizontal, mouse, gyroscope, tilt, perspective3d
-- **Secciones**: continuous, pinned (sticky), snap, horizontal scroll direction
-- **Animaciones triggers**: enter, scroll, loop (yoyo), mouse, gyroscope, hover, click, depends (cross-element)
-- **Animaciones types**: fadeIn/Out, translateX/Y, rotate/X/Y, scale, blur, skew, clipPath
-- **Elementos**: png, text (splitMode words/chars/lines), component, audio, video — todos con link opcional
-- **Interactividad**: event bus hover/click, depends trigger entre elementos por ID
-- **Responsive**: overrides mobile/desktop por elemento
-- **Quality tiers**: auto-detección hardware, caps layers/blur/fps
-- **FormBlock**: 9 field types, validación, honeypot, webhook POST, ARIA
+- **Sections**: continuous, pinned (sticky), snap, horizontal scroll direction
+- **Animation triggers**: enter, scroll, loop (yoyo), mouse, gyroscope, hover, click, depends (cross-element)
+- **Animation types**: fadeIn/Out, translateX/Y, rotate/X/Y, scale, blur, skew, clipPath
+- **Elements**: png, text (splitMode words/chars/lines), component, audio, video — all support an optional link
+- **Interactivity**: hover/click event bus, depends trigger between elements by ID
+- **Responsive**: per-element mobile/desktop overrides
+- **Quality tiers**: hardware auto-detection, caps layers/blur/fps
+- **FormBlock**: 9 field types, validation, honeypot, webhook POST, ARIA
 - **A11y**: prefers-reduced-motion, semantic tags, alt, ARIA, focus-visible
-- **Errores**: dev overlay rojo / prod console.error silent
-- **Transiciones**: fade, wipe, crossfade-blur, zoom, page-flip entre mundos
+- **Errors**: red dev overlay / silent console.error in prod
+- **Transitions**: fade, wipe, crossfade-blur, zoom, page-flip between worlds
 - **Custom cursor**: configurable color/size/blendMode
-- **Blend modes**: mix-blend-mode por layer
+- **Blend modes**: per-layer mix-blend-mode
 
-## Assets — `assetBase` (el engine resuelve las rutas, NO el consumidor)
+## Assets — `assetBase` (engine resolves paths, NOT the consumer)
 
-El `site.json` guarda rutas de assets **relativas** y canónicas (`images/foo.png`, `fonts/x.otf`, `video.poster`, fondos de sección tipo imagen). **El engine es autosuficiente**: el consumidor solo declara DÓNDE sirve los assets de ese site pasando la prop **`assetBase`** a `<ParallaxSite>` (p. ej. `assetBase="/content/<slug>/"`), y el engine prefija TODA ruta relativa (`png/video/audio.src`, `video.poster`, `@font-face url` de fuentes custom y fondos de sección imagen) vía `resolveAssetUrl` (`utils/units.ts`). El consumidor **no** debe reescribir el `site.json`.
+`site.json` stores **relative**, canonical asset paths (`images/foo.png`, `fonts/x.otf`, `video.poster`, image-type section backgrounds). **The engine is self-sufficient**: the consumer only declares WHERE it serves the assets for that site by passing the **`assetBase`** prop to `<ParallaxSite>` (e.g. `assetBase="/content/<slug>/"`), and the engine prefixes EVERY relative path (`png/video/audio.src`, `video.poster`, `@font-face url` for custom fonts, and image-type section backgrounds) via `resolveAssetUrl` (`utils/units.ts`). The consumer must **not** rewrite `site.json`.
 
-- **Additive / backwards-compatible:** sin `assetBase`, las rutas se usan tal cual (comportamiento previo) y en **dev** el engine **avisa por consola** (`[parallax-engine] … no se pasó la prop assetBase…`) — "lo pida".
-- **Nunca toca** rutas no-relativas: `http(s)://`, root-relativas (`/…`), protocol-relative (`//…`), `data:` ni `blob:`.
-- **OG image / favicon** son meta de `<head>` (SEO) que el engine NO renderiza → eso lo sigue prefijando el consumidor en su capa de SEO.
-- Test: `tests/units.test.ts` cubre `resolveAssetUrl`/`isRelativeAssetPath`.
+- **Additive / backwards-compatible:** without `assetBase`, paths are used verbatim (legacy behavior) and in **dev** the engine **logs a console warning** (`[parallax-engine] … assetBase prop not provided…`) — "ask for it".
+- **Never touches** non-relative paths: `http(s)://`, root-relative (`/…`), protocol-relative (`//…`), `data:`, or `blob:`.
+- **OG image / favicon** are `<head>` metadata (SEO) the engine does NOT render → those are still prefixed by the consumer's SEO layer.
+- Test: `tests/units.test.ts` covers `resolveAssetUrl`/`isRelativeAssetPath`.
 
-## Linking
+## Distribution / linking
 
-Los 3 repos consumidores declaran `"parallax-engine": "link:../parallax-engine"` en package.json. `yarn install` crea el symlink automáticamente. Los consumidores necesitan `vite.resolve.dedupe: ['vue']` para evitar doble instancia.
+The engine ships to **npm** as `parallax-engine` (GPL-3.0-or-later). Consumers install with `yarn add parallax-engine` and declare the standard dep (`"parallax-engine": "^x.y.z"`). They need `vite.resolve.dedupe: ['vue']` to avoid double Vue instances.
+
+For simultaneous engine + consumer development (without publishing): `yarn link` or [`yalc`](https://github.com/wclr/yalc). The background build (`yarn dev`) keeps `dist/` fresh; the consumer picks up changes on reload.
 
 ## Schema v1.1
 
-El schema se define completo en `src/schema.ts`. Es additive-only — todos los campos nuevos son opcionales y backwards-compatible. v1.1 añade `views` (árboles desktop/mobile independientes); v1.0 sigue 100% válido. No subir a v2 sin migración planificada.
+The schema is defined in full in `src/schema.ts`. It is additive-only — every new field is optional and backwards-compatible. v1.1 adds `views` (independent desktop/mobile trees); v1.0 remains 100% valid. Do NOT bump to v2 without a planned migration.
 
-## Doc de IA — `ai/contract.md` (FUENTE DE VERDAD para LLMs)
+## AI doc — `ai/contract.md` (SOURCE OF TRUTH for LLMs)
 
-`ai/contract.md` es el **contrato de autoría de `site.json` auto-contenido** que el editor inyecta en cada `claude -p`. Gracias a esto los repos de contenido (eventos / portafolio / un tercero) **ya NO llevan ningún skill** — el editor + el engine son la única fuente. El editor lo empaqueta en su bundle (`parallax-editor/scripts/embed-contract.mjs`), así que funciona aunque el repo del engine no esté en la máquina de Daniela.
+`ai/contract.md` is the **self-contained `site.json` authoring contract** that the editor injects into every `claude -p`. Thanks to this, consumer content repos **do not need to ship any skill** — the editor + engine are the only source. The editor bundles it (`parallax-editor/scripts/embed-contract.mjs`), so it works even when the engine repo is not present on the user's machine.
 
-**REGLA DE MANTENIMIENTO (obligatoria):** **siempre que modifiques el engine** — especialmente `src/schema.ts`, `src/config.ts` (editableProps), o cualquier feature/comportamiento que afecte cómo se escribe un `site.json` — **revisa si hay que ajustar `ai/contract.md` y actualízalo en el MISMO commit.** Hay un test (`tests/contract-doc.test.ts`) que falla si la doc se desincroniza de la versión del schema o de los enums (tipos de elemento, animación, triggers, easing, transiciones); pero la prosa y los ejemplos los mantienes tú.
+**MAINTENANCE RULE (mandatory):** **whenever you modify the engine** — especially `src/schema.ts`, `src/config.ts` (editableProps), or any feature/behavior that affects how a `site.json` is written — **check whether `ai/contract.md` needs an update and update it in the SAME commit.** There is a test (`tests/contract-doc.test.ts`) that fails if the doc drifts from the schema version or enums (element types, animation types, triggers, easing, transitions); but you maintain the prose and examples yourself.
 
 ## Git hooks
 
-Hook `pre-commit` versionado en `hooks/pre-commit`, activado con `git config --local core.hooksPath hooks` (config local del repo; el hook vive en el árbol). En cada `git commit` corre, en orden: `yarn lint` **si** existe el script `lint` en `package.json` (hoy no existe → se omite con nota), `yarn typecheck` (vue-tsc) y `yarn test` (Vitest, offline). Cualquier fallo → commit bloqueado con mensaje claro en español. Emergencia: `git commit --no-verify`. El auto-commit-on-save del editor pasa `--no-verify` a propósito (ver `parallax-editor`), así que nunca dispara este hook.
+Pre-commit hook versioned in `hooks/pre-commit`, activated with `git config --local core.hooksPath hooks` (local repo config; the hook lives in the tree). On every `git commit` it runs, in order: `yarn lint` **if** the `lint` script exists in `package.json` (today it does not → skipped with a note), `yarn typecheck` (vue-tsc), and `yarn test` (Vitest, offline). Any failure → commit blocked with a clear message. Emergency: `git commit --no-verify`. The editor's auto-commit-on-save passes `--no-verify` on purpose (see `parallax-editor`), so it never fires this hook.

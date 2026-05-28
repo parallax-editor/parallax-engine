@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parallax Engine — open-source Vue 3 engine for immersive sites</title>
+  <meta name="description" content="Open-source Vue 3 engine for immersive parallax sites driven by a JSON schema. Core library of the Parallax system." />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #0b0b0c;
+      color: #f3efe7;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #d6c7a6; text-decoration: none; }
+    a:hover { color: #fff; text-decoration: underline; }
+    main { max-width: 720px; margin: 0 auto; padding: 80px 24px 120px; }
+    .eyebrow {
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin: 0 0 24px;
+    }
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 3.6rem);
+      line-height: 1.05;
+      margin: 0 0 24px;
+      font-weight: 700;
+    }
+    h1 em { font-style: italic; color: #d6c7a6; }
+    p.lede {
+      font-size: 1.15rem;
+      opacity: 0.85;
+      margin: 0 0 40px;
+    }
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      background: #f3efe7;
+      color: #0b0b0c;
+      font-weight: 600;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    .cta:hover { background: #fff; text-decoration: none; }
+    .cta.ghost {
+      background: transparent;
+      color: #f3efe7;
+      border: 1px solid rgba(243, 239, 231, 0.3);
+    }
+    .cta.ghost:hover { border-color: #f3efe7; }
+    h2 {
+      font-size: 1.4rem;
+      margin-top: 56px;
+      margin-bottom: 12px;
+    }
+    pre {
+      background: #18181a;
+      border: 1px solid rgba(243, 239, 231, 0.08);
+      border-radius: 10px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 14px;
+    }
+    code { font-family: "SF Mono", Menlo, monospace; }
+    ul { padding-left: 1.2em; }
+    li { margin: 6px 0; }
+    footer {
+      margin-top: 80px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(243, 239, 231, 0.08);
+      font-size: 14px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Vue 3 · GPL-3.0 · npm</p>
+    <h1>Parallax <em>Engine</em></h1>
+    <p class="lede">
+      Open-source Vue 3 engine for immersive parallax sites driven by a JSON
+      schema (<code>site.json</code>). The rendering core of the Parallax
+      system — paired with the
+      <a href="https://parallax-editor.github.io/parallax-editor/editor.html">Parallax Editor</a>,
+      a local Illustrator-style editor.
+    </p>
+
+    <p>
+      <a class="cta" href="https://github.com/parallax-editor/parallax-engine">View on GitHub →</a>
+      <a class="cta ghost" href="https://parallax-editor.github.io/parallax-editor/editor.html">Meet the Editor</a>
+    </p>
+
+    <h2>Install</h2>
+    <pre><code>npm install parallax-engine
+# or
+yarn add parallax-engine</code></pre>
+
+    <h2>Quick start</h2>
+    <pre><code>import { ParallaxSite } from 'parallax-engine'
+import { validateSite } from 'parallax-engine/schema'
+import 'parallax-engine/style.css'</code></pre>
+
+    <h2>Learn more</h2>
+    <ul>
+      <li><a href="https://github.com/parallax-editor/parallax-engine#readme">README</a> — features, exports, dev setup</li>
+      <li><a href="https://github.com/parallax-editor/parallax-engine/blob/main/ai/contract.md"><code>ai/contract.md</code></a> — the full <code>site.json</code> authoring contract (LLM source of truth)</li>
+      <li><a href="https://github.com/parallax-editor/parallax-engine/blob/main/src/schema.ts"><code>src/schema.ts</code></a> — the Zod schema (v1.1)</li>
+      <li><a href="https://github.com/parallax-editor/parallax-editor">Parallax Editor</a> — the desktop authoring app</li>
+    </ul>
+
+    <footer>
+      Open source · GPL-3.0-or-later · Built with
+      <a href="https://claude.com/claude-code">Claude Code</a>.
+    </footer>
+  </main>
+</body>
+</html>
