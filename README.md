@@ -1,6 +1,6 @@
 # parallax-engine
 
-[![npm](https://img.shields.io/npm/v/parallax-engine.svg)](https://www.npmjs.com/package/parallax-engine)
+[![npm](https://img.shields.io/npm/v/@parallax-editor/parallax-engine.svg)](https://www.npmjs.com/package/@parallax-editor/parallax-engine)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 
 Open-source Vue 3 engine for immersive parallax sites driven by a JSON schema (`site.json`). The rendering core of the **Parallax** system — paired with [`parallax-editor`](https://github.com/parallax-editor/parallax-editor), a local Illustrator-style editor, and any number of consumer sites that render `site.json` files.
@@ -10,9 +10,9 @@ Open-source Vue 3 engine for immersive parallax sites driven by a JSON schema (`
 ## Install
 
 ```bash
-npm install parallax-engine
+npm install @parallax-editor/parallax-engine
 # or
-yarn add parallax-engine
+yarn add @parallax-editor/parallax-engine
 ```
 
 Peer dependency: `vue ^3.4.0`. Consumer apps should `dedupe: ['vue']` in their Vite config to avoid double Vue instances when the engine is linked locally.
@@ -20,8 +20,8 @@ Peer dependency: `vue ^3.4.0`. Consumer apps should `dedupe: ['vue']` in their V
 ## Usage
 
 ```ts
-import { ParallaxSite } from 'parallax-engine'
-import { validateSite } from 'parallax-engine/schema'
+import { ParallaxSite } from '@parallax-editor/parallax-engine'
+import { validateSite } from '@parallax-editor/parallax-engine/schema'
 import 'parallax-engine/style.css'
 ```
 

@@ -1,5 +1,5 @@
 {
-  "name": "parallax-engine",
+  "name": "@parallax-editor/parallax-engine",
   "version": "0.1.0",
   "description": "Vue 3 engine for immersive parallax sites driven by a JSON schema. Core library of the Parallax system.",
   "type": "module",

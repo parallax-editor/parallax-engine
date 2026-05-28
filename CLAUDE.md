@@ -53,7 +53,7 @@ yarn typecheck  # vue-tsc --noEmit
 
 ## Distribution / linking
 
-The engine ships to **npm** as `parallax-engine` (GPL-3.0-or-later). Consumers install with `yarn add parallax-engine` and declare the standard dep (`"parallax-engine": "^x.y.z"`). They need `vite.resolve.dedupe: ['vue']` to avoid double Vue instances.
+The engine ships to **npm** as `parallax-engine` (GPL-3.0-or-later). Consumers install with `yarn add @parallax-editor/parallax-engine` and declare the standard dep (`"@parallax-editor/parallax-engine": "^x.y.z"`). They need `vite.resolve.dedupe: ['vue']` to avoid double Vue instances.
 
 For simultaneous engine + consumer development (without publishing): `yarn link` or [`yalc`](https://github.com/wclr/yalc). The background build (`yarn dev`) keeps `dist/` fresh; the consumer picks up changes on reload.
 
