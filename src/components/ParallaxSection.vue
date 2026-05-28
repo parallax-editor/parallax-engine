@@ -16,6 +16,9 @@ const viewportHeight = inject<Ref<number>>('parallaxViewportHeight', ref(800))
 const scrollNonce = inject<Ref<number>>('parallaxScrollNonce', ref(0))
 // Base de assets (#assetBase): el fondo tipo imagen resuelve su ruta relativa.
 const assetBase = inject<Ref<string>>('parallaxAssetBase', ref(''))
+// fit mode from the parent ParallaxSite. When 'container', section wrappers
+// fill the host instead of relying on `height: 100vh` defaults.
+const fitMode = inject<() => 'viewport' | 'container'>('parallaxFit', () => 'viewport')
 
 const isVisible = ref(false)
 let observer: IntersectionObserver | null = null
@@ -73,6 +76,15 @@ const outerStyle = computed(() => {
     style.height = props.section.height
     style.position = 'relative'
     style.overflow = 'visible'
+  } else if (fitMode() === 'container') {
+    // fit=container mode: the outer wrapper otherwise has no height (it is
+    // a passive shell around the <section>). Its child <section> uses
+    // `height: <section.height>` which resolves against THIS wrapper; without
+    // an explicit height here, a `section.height: 100%` collapses to 0 and
+    // every absolutely-positioned layer ends up hidden above the box. Fill
+    // the parent so the chain {site → wrapper → section → layers} all share
+    // the host element's height.
+    style.height = '100%'
   }
   return style
 })
@@ -104,7 +116,12 @@ const sectionStyle = computed(() => {
     style.top = '0'
     style.height = '100vh'
   } else {
-    style.height = props.section.height
+    // fit=container: viewport-relative heights (100vh) would overflow the
+    // host element. Auto-substitute with 100% so the section fills the
+    // host. Author-provided concrete heights (px/rem/calc) pass through.
+    style.height = fitMode() === 'container' && props.section.height === '100vh'
+      ? '100%'
+      : props.section.height
   }
 
   if (isSnap.value) {

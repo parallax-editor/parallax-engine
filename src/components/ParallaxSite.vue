@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, provide, onMounted, onUnmounted, computed, type Component } from 'vue'
-import type { Site } from '../schema'
+import { validateSite, type Site } from '../schema'
 import { useReducedMotion } from '../composables/useReducedMotion'
 import { useErrorHandler } from '../composables/useErrorHandler'
 import { useResponsive } from '../composables/useResponsive'
@@ -34,10 +34,31 @@ const props = withDefaults(defineProps<{
   // (comportamiento previo) y en dev se avisa. Rutas absolutas/`/`/data: nunca
   // se tocan. Ver `resolveAssetUrl` y CLAUDE.md (§assets).
   assetBase?: string
+  // How the site sizes itself within its host element.
+  //   'viewport' (default) → the engine takes 100vh (legacy behavior: the
+  //     site IS the page; consumer dedicates the whole viewport to it).
+  //   'container' → the engine fills its host element instead. Use this when
+  //     embedding the engine as a widget (hero block, card, modal) inside a
+  //     larger page. The host needs an explicit height (e.g. `aspect-ratio`)
+  //     for percentage heights to resolve. Sections without an explicit
+  //     `height` get '100%' instead of '100vh' so layers fit the box.
+  fit?: 'viewport' | 'container'
 }>(), {
   mode: import.meta.env.DEV ? 'dev' : 'prod',
   staticMotion: false,
   assetBase: '',
+  fit: 'viewport',
+})
+
+// Internal normalization: callers may pass a raw site.json that never went
+// through validateSite. Run it through the Zod schema once so optional
+// defaults (parallaxMode, animations, fonts, anchor, opacity, …) are filled
+// in before any downstream code iterates them. If validation fails we fall
+// back to the raw site so a broken site never crashes the engine — the dev
+// error overlay surfaces the issue instead.
+const normalizedSite = computed<Site>(() => {
+  const result = validateSite(props.site)
+  return result.ok ? result.data : (props.site as Site)
 })
 
 // Navegación in-engine a otro sitio (link.site). Al click en un elemento con
@@ -46,6 +67,7 @@ const props = withDefaults(defineProps<{
 // sin recargar la página. En "dev" (editor) no navega: el elemento es editable.
 const emit = defineEmits<{ navigate: [slug: string] }>()
 provide('parallaxMode', props.mode)
+provide('parallaxFit', () => props.fit)
 provide('parallaxNavigate', (slug: string) => emit('navigate', slug))
 
 // ─── Scroll state ──────────────────────────────────────────────────────────────
@@ -97,11 +119,11 @@ provide('parallaxAssetBase', assetBase)
 // unchanged). When `views` is present, it returns the chosen view's full tree
 // as-is (no per-element override merging — the two trees are independent).
 // Viewport comes from the EXISTING `useResponsive` determination (`device`).
-const sections = computed(() => resolveSections(props.site, device.value))
+const sections = computed(() => resolveSections(normalizedSite.value, device.value))
 
 // ─── Quality tier ──────────────────────────────────────────────────────────────
 
-const qualityTier = useQualityTier(device, props.site.quality)
+const qualityTier = useQualityTier(device, normalizedSite.value.quality)
 provide('parallaxQuality', qualityTier)
 
 // ─── Reduced motion ────────────────────────────────────────────────────────────
@@ -134,7 +156,7 @@ provide('parallaxInteractionBus', interactionBus)
 
 // ─── Custom cursor ─────────────────────────────────────────────────────────────
 
-const cursorState = useCursorEffect(props.site.cursor)
+const cursorState = useCursorEffect(normalizedSite.value.cursor)
 provide('parallaxCursor', cursorState)
 
 // ─── Error handler ─────────────────────────────────────────────────────────────
@@ -150,7 +172,7 @@ const hasSnap = computed(() =>
 )
 
 const themeStyle = computed(() => {
-  const t = props.site.theme
+  const t = normalizedSite.value.theme
   const style: Record<string, string> = {}
   if (t) {
     style['--color-ink'] = t.colors.ink
@@ -172,7 +194,9 @@ const themeStyle = computed(() => {
 
 function injectFonts() {
   if (typeof document === 'undefined') return
-  const fonts = props.site.meta.fonts
+  // meta.fonts is optional in the schema (defaults to []) but consumers may
+  // pass a raw site.json that never went through validateSite, so guard.
+  const fonts = normalizedSite.value.meta.fonts ?? []
   for (const font of fonts) {
     if (font.source === 'google') {
       const existing = document.querySelector(`link[data-parallax-font="${font.family}"]`)
@@ -243,14 +267,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="parallax-site" :style="themeStyle" :lang="site.meta.lang">
+  <div
+    class="parallax-site"
+    :class="{ 'parallax-site--fit-container': fit === 'container' }"
+    :style="themeStyle"
+    :lang="normalizedSite.meta.lang"
+  >
     <ParallaxSection
       v-for="(section, i) in sections"
       :key="section.id || i"
       :section="section"
     />
     <GyroscopePrompt />
-    <CustomCursor v-if="site.cursor?.enabled" :config="site.cursor" />
+    <CustomCursor v-if="normalizedSite.cursor?.enabled" :config="normalizedSite.cursor" />
     <ErrorOverlay
       v-if="mode === 'dev'"
       @dismiss="clearErrors"
@@ -263,5 +292,16 @@ onUnmounted(() => {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+}
+/* fit="container" mode: the site fills its host element instead of the
+   viewport. Use this when embedding the engine inside a larger page (hero
+   block, modal). The host needs an explicit height (e.g. aspect-ratio) for
+   percentage heights to resolve. */
+.parallax-site--fit-container {
+  height: 100%;
+  min-height: 0;
+}
+.parallax-site--fit-container :deep(.parallax-section) {
+  height: 100%;
 }
 </style>

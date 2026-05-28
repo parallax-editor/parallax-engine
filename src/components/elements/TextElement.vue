@@ -52,7 +52,7 @@ const SPLIT_LINE_HEIGHT = 1.3
 // Base delay of the element's own enter/scroll animation, so the per-part
 // stagger starts AFTER any configured animation delay rather than at 0.
 const baseDelay = computed(() => {
-  const a = props.element.animations.find(
+  const a = (props.element.animations ?? []).find(
     (an) => an.trigger === 'enter' || an.trigger === 'scroll',
   )
   return a?.delay ?? 0
@@ -61,7 +61,7 @@ const baseDelay = computed(() => {
 // Per-part reveal duration: reuse the element's animation duration if present
 // so the typewriter cadence matches the rest of the element's motion.
 const partDuration = computed(() => {
-  const a = props.element.animations.find(
+  const a = (props.element.animations ?? []).find(
     (an) => an.trigger === 'enter' || an.trigger === 'scroll',
   )
   return a?.duration ?? 600

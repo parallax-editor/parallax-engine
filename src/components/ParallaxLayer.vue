@@ -53,8 +53,10 @@ const layerStyle = computed(() => {
   }
 
   const transforms: string[] = []
-  const depth = props.layer.depth
-  const modes = props.layer.parallaxMode
+  const depth = props.layer.depth ?? 0
+  // parallaxMode defaults to [] in the schema, but defensive in case the
+  // consumer passes a raw site.json that never went through validateSite.
+  const modes = props.layer.parallaxMode ?? []
 
   // scroll-vertical
   if (modes.includes('scroll-vertical') && depth !== 0) {
