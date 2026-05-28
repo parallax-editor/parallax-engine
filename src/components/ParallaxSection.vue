@@ -7,7 +7,6 @@ import ParallaxLayer from './ParallaxLayer.vue'
 const props = defineProps<{ section: Section }>()
 
 const sectionRef = ref<HTMLElement | null>(null)
-const innerRef = ref<HTMLElement | null>(null)
 const scrollY = inject<Ref<number>>('parallaxScrollY', ref(0))
 const viewportHeight = inject<Ref<number>>('parallaxViewportHeight', ref(800))
 // Disparador adicional de recálculo: se bumpea ante CUALQUIER scroll (incluido
@@ -149,7 +148,7 @@ const sectionStyle = computed(() => {
 <template>
   <!-- Outer wrapper: only meaningful for pinned (provides scroll height) -->
   <div ref="sectionRef" :style="outerStyle">
-    <section ref="innerRef" :id="section.id" :style="sectionStyle" class="parallax-section">
+    <section :id="section.id" :style="sectionStyle" class="parallax-section">
       <div
         v-if="isHorizontal"
         class="horizontal-track"

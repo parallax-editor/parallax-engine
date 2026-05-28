@@ -19,10 +19,19 @@ export default defineConfig({
       },
       formats: ['es'],
     },
+    // cssCodeSplit:false + assetFileNames keep the CSS at the stable
+    // `dist/style.css` path (the package.json exports map points to it).
+    // Vite 6+ changed the default to the lib name (`parallax-engine.css`),
+    // which would have broken downstream `import '...engine/style.css'`.
+    cssCodeSplit: false,
     rollupOptions: {
       external: ['vue', 'lenis'],
       output: {
         entryFileNames: '[name].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith('.css')) return 'style.css'
+          return '[name][extname]'
+        },
       },
     },
   },

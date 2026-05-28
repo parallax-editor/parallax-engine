@@ -175,7 +175,7 @@ export const componentElementSchema = z.object({
   type: z.literal('component'),
   ...elementCommon,
   name: z.string(),
-  props: z.record(z.unknown()).optional(),
+  props: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const audioElementSchema = z.object({
