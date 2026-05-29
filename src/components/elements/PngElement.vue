@@ -96,6 +96,8 @@ const mergedStyle = computed(() => {
       :class="{ interactive: isInteractive }"
       :data-parallax-interactive="isInteractive || undefined"
       loading="lazy"
+      draggable="false"
+      @contextmenu.prevent
     />
   </ElementLink>
 </template>
@@ -106,6 +108,11 @@ const mergedStyle = computed(() => {
   max-width: none;
   pointer-events: none;
   user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 .parallax-png-element.interactive {
   pointer-events: auto;

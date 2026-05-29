@@ -5,6 +5,7 @@ export { default as ParallaxSite } from './components/ParallaxSite.vue'
 export { default as ParallaxSection } from './components/ParallaxSection.vue'
 export { default as ParallaxLayer } from './components/ParallaxLayer.vue'
 export { default as PngElement } from './components/elements/PngElement.vue'
+export { default as GifElement } from './components/elements/GifElement.vue'
 export { default as TextElement } from './components/elements/TextElement.vue'
 export { default as ComponentElement } from './components/elements/ComponentElement.vue'
 export { default as AudioElement } from './components/elements/AudioElement.vue'
@@ -37,6 +38,10 @@ export { resolveUnit, resolvePosition, resolveSize, resolveAnchorOffset, resolve
 export { assignIds } from './utils/ids'
 export { resolveSections, toViews } from './utils/views'
 export type { Viewport } from './utils/views'
+export { buildSiteHead } from './utils/head'
+export type { SiteHead, SiteHeadLink, SiteHeadStyle, BuildSiteHeadOptions } from './utils/head'
+export { setEngineLocale, getEngineLocale, tr } from './utils/locale'
+export type { EngineLocale } from './utils/locale'
 
 // Schema re-exports (convenience — canonical import is 'parallax-engine/schema')
 export { SCHEMA_VERSION, validateSite } from './schema'

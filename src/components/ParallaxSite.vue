@@ -10,7 +10,7 @@ import { useGyroscope } from '../composables/useGyroscope'
 import { useInteractionBus } from '../composables/useInteractionBus'
 import { useCursorEffect } from '../composables/useCursorEffect'
 import { resolveSections } from '../utils/views'
-import { resolveAssetUrl } from '../utils/units'
+import { buildSiteHead } from '../utils/head'
 import ParallaxSection from './ParallaxSection.vue'
 import ErrorOverlay from './ErrorOverlay.vue'
 import GyroscopePrompt from './GyroscopePrompt.vue'
@@ -119,7 +119,12 @@ provide('parallaxAssetBase', assetBase)
 // unchanged). When `views` is present, it returns the chosen view's full tree
 // as-is (no per-element override merging — the two trees are independent).
 // Viewport comes from the EXISTING `useResponsive` determination (`device`).
-const sections = computed(() => resolveSections(normalizedSite.value, device.value))
+// Hidden sections (visible:false) are kept in the source tree (the editor needs
+// them) but skipped at render time. Filtering here, rather than inside
+// ParallaxSection, keeps the engine's section index stable for hidden ones.
+const sections = computed(() =>
+  resolveSections(normalizedSite.value, device.value).filter((s) => s.visible !== false),
+)
 
 // ─── Quality tier ──────────────────────────────────────────────────────────────
 
@@ -194,26 +199,29 @@ const themeStyle = computed(() => {
 
 function injectFonts() {
   if (typeof document === 'undefined') return
-  // meta.fonts is optional in the schema (defaults to []) but consumers may
-  // pass a raw site.json that never went through validateSite, so guard.
-  const fonts = normalizedSite.value.meta.fonts ?? []
-  for (const font of fonts) {
-    if (font.source === 'google') {
-      const existing = document.querySelector(`link[data-parallax-font="${font.family}"]`)
-      if (existing) continue
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font.family)}:wght@300;400;500;600;700&display=swap`
-      link.setAttribute('data-parallax-font', font.family)
-      document.head.appendChild(link)
-    } else if (font.source === 'custom' && font.url) {
-      const existing = document.querySelector(`style[data-parallax-font="${font.family}"]`)
-      if (existing) continue
-      const style = document.createElement('style')
-      style.setAttribute('data-parallax-font', font.family)
-      style.textContent = `@font-face { font-family: '${font.family}'; src: url('${resolveAssetUrl(props.assetBase, font.url)}'); font-display: swap; }`
-      document.head.appendChild(style)
-    }
+  // Single source of truth: the same pure builder SSR consumers call. Runtime
+  // path keeps working for SPA hosts (editor, daniela-reyes-site after
+  // hydration) AND idempotently skips anything SSR already added — the unique
+  // `key` (e.g. parallax-font-Inter / parallax-font-preconnect-css) is what we
+  // mirror into a `data-parallax-key` attr so both preconnect entries (which
+  // share the data-parallax-font="preconnect" tag) get inserted exactly once.
+  const head = buildSiteHead(normalizedSite.value.meta, { assetBase: props.assetBase })
+  for (const entry of head.link) {
+    if (document.querySelector(`link[data-parallax-key="${entry.key}"]`)) continue
+    const el = document.createElement('link')
+    el.rel = entry.rel
+    el.href = entry.href
+    el.setAttribute('data-parallax-font', entry['data-parallax-font'])
+    el.setAttribute('data-parallax-key', entry.key)
+    document.head.appendChild(el)
+  }
+  for (const entry of head.style) {
+    if (document.querySelector(`style[data-parallax-key="${entry.key}"]`)) continue
+    const el = document.createElement('style')
+    el.setAttribute('data-parallax-font', entry['data-parallax-font'])
+    el.setAttribute('data-parallax-key', entry.key)
+    el.textContent = entry.textContent
+    document.head.appendChild(el)
   }
 }
 

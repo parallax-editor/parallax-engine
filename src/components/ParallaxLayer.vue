@@ -4,6 +4,7 @@ import type { Layer, QualityTier } from '../schema'
 import type { MouseState } from '../composables/useMouseTracking'
 import type { GyroscopeState } from '../composables/useGyroscope'
 import PngElement from './elements/PngElement.vue'
+import GifElement from './elements/GifElement.vue'
 import TextElement from './elements/TextElement.vue'
 import ComponentElement from './elements/ComponentElement.vue'
 import AudioElement from './elements/AudioElement.vue'
@@ -138,6 +139,7 @@ const wrapperStyle = computed(() => {
     <div class="parallax-layer" :style="layerStyle">
       <template v-for="element in layer.elements" :key="element.id">
         <PngElement v-if="element.type === 'png'" :element="element" />
+        <GifElement v-else-if="element.type === 'gif'" :element="element" />
         <TextElement v-else-if="element.type === 'text'" :element="element" />
         <ComponentElement v-else-if="element.type === 'component'" :element="element" />
         <AudioElement v-else-if="element.type === 'audio'" :element="element" />

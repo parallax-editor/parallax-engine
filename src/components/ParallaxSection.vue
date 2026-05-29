@@ -26,6 +26,13 @@ const isPinned = computed(() => props.section.scrollBehavior === 'pinned')
 const isSnap = computed(() => props.section.scrollBehavior === 'snap')
 const isHorizontal = computed(() => props.section.scrollDirection === 'horizontal')
 
+// Hidden layers (visible:false) stay in the editor source tree but are skipped
+// in render. Mirrors the section-level filter inside ParallaxSite. Filtering
+// here means hidden layers also do not register parallax/depth side effects.
+const visibleLayers = computed(() =>
+  props.section.layers.filter((l) => l.visible !== false),
+)
+
 onMounted(() => {
   // Observe the outer wrapper (which has full height for pinned sections)
   const target = sectionRef.value
@@ -155,7 +162,7 @@ const sectionStyle = computed(() => {
         :style="{ transform: `translateX(${-sectionProgress * 100}%)`, width: '100%', height: '100%', display: 'flex' }"
       >
         <ParallaxLayer
-          v-for="(layer, i) in section.layers"
+          v-for="(layer, i) in visibleLayers"
           :key="layer.id || i"
           :layer="layer"
           :layer-index="i"
@@ -164,7 +171,7 @@ const sectionStyle = computed(() => {
       </div>
       <template v-else>
         <ParallaxLayer
-          v-for="(layer, i) in section.layers"
+          v-for="(layer, i) in visibleLayers"
           :key="layer.id || i"
           :layer="layer"
           :layer-index="i"

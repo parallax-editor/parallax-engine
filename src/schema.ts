@@ -28,11 +28,12 @@ export const TRANSITION_TYPES = ['fade', 'wipe', 'crossfade-blur', 'zoom', 'page
 export const SCROLL_BEHAVIORS = ['pinned', 'continuous', 'snap'] as const
 export const SCROLL_DIRECTIONS = ['vertical', 'horizontal'] as const
 export const PARALLAX_MODES = ['scroll-vertical', 'scroll-horizontal', 'mouse', 'gyroscope', 'tilt'] as const
-export const ELEMENT_TYPES = ['png', 'text', 'component', 'audio', 'video'] as const
+export const ELEMENT_TYPES = ['png', 'gif', 'text', 'component', 'audio', 'video'] as const
 export const ANCHOR_TYPES = ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'top', 'bottom', 'left', 'right'] as const
 export const SEMANTIC_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'] as const
 export const SPLIT_MODES = ['none', 'words', 'chars', 'lines'] as const
 export const TEXT_ALIGN = ['left', 'center', 'right', 'justify'] as const
+export const WHITE_SPACE = ['normal', 'nowrap', 'pre', 'pre-wrap', 'pre-line', 'break-spaces'] as const
 export const OBJECT_FIT = ['cover', 'contain', 'fill', 'none', 'scale-down'] as const
 export const DEPENDS_EVENTS = ['hover', 'click', 'enter'] as const
 
@@ -99,6 +100,8 @@ const elementOverridesSchema = z.object({
   color: z.string().optional(),
   letterSpacing: z.string().optional(),
   lineHeight: z.string().optional(),
+  textAlign: z.enum(TEXT_ALIGN).optional(),
+  whiteSpace: z.enum(WHITE_SPACE).optional(),
 }).partial().optional()
 
 // ─── Link (any element can be a link) ──────────────────────────────────────────
@@ -133,7 +136,11 @@ const elementCommon = {
   // flipY = vertical. Sin default → ausente = sin voltear (byte-idéntico).
   flipX: z.boolean().optional(),
   flipY: z.boolean().optional(),
-  visible: z.boolean().default(true),
+  // Optional + `el.visible !== false` at render so omitting the field is the
+  // same as `true` AND parsed JSON stays byte-identical (the editor's autosave
+  // won't churn every existing site.json with `"visible": true` on the next
+  // save). Same model as flipX/flipY and (now) layer/section visible below.
+  visible: z.boolean().optional(),
   interactive: z.boolean().default(false),
   link: linkSchema.optional(),
   animations: z.array(animationSchema).default([]),
@@ -153,6 +160,37 @@ export const pngElementSchema = z.object({
   objectFit: z.enum(OBJECT_FIT).optional(),
 })
 
+// GIF element (v1.1 additive). Separate from `png` so the editor and the engine
+// can surface gif-specific controls (autoplay/loop/pauseOnHover) without
+// polluting the PNG path. Browser-native GIF playback only honors `loop` from
+// the file itself; the engine uses a canvas snapshot trick to implement
+// `autoplay:false` (show only first frame) and `pauseOnHover:true` (freeze
+// while hovered). All flags optional with sane defaults so a minimal
+// `{ type:"gif", src:"…", position:{…} }` Just Works.
+export const gifElementSchema = z.object({
+  type: z.literal('gif'),
+  ...elementCommon,
+  src: z.string(),
+  alt: z.string().optional(),
+  objectFit: z.enum(OBJECT_FIT).optional(),
+  // Auto-play the animation on mount. When false, the engine paints a static
+  // canvas snapshot of the first frame; setting this true mid-session swaps
+  // back to the live <img>.
+  autoplay: z.boolean().default(true),
+  // GIFs loop by default (the file usually has loop count = 0 = infinite); when
+  // false the engine plays once then freezes on the last frame (canvas snapshot
+  // at the `animationend` analog: after a single play duration estimate).
+  loop: z.boolean().default(true),
+  // Freeze the GIF on hover (canvas snapshot swap). Useful for tiles that show
+  // a still preview until the cursor enters.
+  pauseOnHover: z.boolean().default(false),
+  // Per-element estimated playback duration (ms) used by `loop:false` to know
+  // when to freeze the GIF on its last visible frame. Author-configurable so
+  // short / long GIFs both behave correctly; the engine's hardcoded fallback
+  // is 2500 ms when this is absent.
+  playDurationMs: z.number().min(0).optional(),
+})
+
 export const textElementSchema = z.object({
   type: z.literal('text'),
   ...elementCommon,
@@ -166,6 +204,11 @@ export const textElementSchema = z.object({
   // v1.1 additive: optional CSS text-align. Absent = current rendering
   // (no text-align forced). No default so existing content is byte-identical.
   textAlign: z.enum(TEXT_ALIGN).optional(),
+  // v1.1 additive: optional CSS white-space. Absent = engine fallback
+  // 'pre-wrap' (preserves consecutive spaces + line breaks that authors type).
+  // No default in schema → JSON without it is byte-identical; only the rendered
+  // CSS changes for content that did not opt-in to a value.
+  whiteSpace: z.enum(WHITE_SPACE).optional(),
   semanticTag: z.enum(SEMANTIC_TAGS).default('p'),
   splitMode: z.enum(SPLIT_MODES).default('none'),
   staggerDelay: z.number().min(0).default(0),
@@ -206,6 +249,7 @@ export const videoElementSchema = z.object({
 
 export const elementSchema = z.discriminatedUnion('type', [
   pngElementSchema,
+  gifElementSchema,
   textElementSchema,
   componentElementSchema,
   audioElementSchema,
@@ -222,6 +266,13 @@ export const layerSchema = z.object({
   opacity: z.number().min(0).max(1).default(1),
   perspective3d: z.boolean().default(false),
   blendMode: z.string().optional(),
+  // v1.1 additive: when false the layer (and all its elements) is excluded at
+  // render time. The editor surface (LayersPanel + PropertiesPanel) is the only
+  // place hidden layers stay visible — they're toggled off in the published
+  // site without having to delete and re-create them later. Optional + missing-
+  // means-visible at render so existing site.json files stay byte-identical
+  // after Zod fill-in (no `"visible": true` churn on autosave).
+  visible: z.boolean().optional(),
   elements: z.array(elementSchema).default([]),
 })
 
@@ -245,6 +296,10 @@ export const sectionSchema = z.object({
   scrollDirection: z.enum(SCROLL_DIRECTIONS).default('vertical'),
   background: backgroundSchema.optional(),
   transition: transitionSchema.optional(),
+  // v1.1 additive: hidden sections are excluded at render time but kept editable
+  // in the LayersPanel. Same model as `layerSchema.visible` / element.visible
+  // — optional and `!== false` at render so existing files stay byte-identical.
+  visible: z.boolean().optional(),
   layers: z.array(layerSchema).default([]),
 })
 
@@ -348,6 +403,7 @@ export const siteSchema = z
 
 export type Animation = z.infer<typeof animationSchema>
 export type PngElement = z.infer<typeof pngElementSchema>
+export type GifElement = z.infer<typeof gifElementSchema>
 export type TextElement = z.infer<typeof textElementSchema>
 export type ComponentElement = z.infer<typeof componentElementSchema>
 export type AudioElement = z.infer<typeof audioElementSchema>

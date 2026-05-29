@@ -145,7 +145,9 @@ describe('validateSite', () => {
     if (result.ok) {
       const el = result.data.sections[0].layers[0].elements[0]
       expect(el.opacity).toBe(1)
-      expect(el.visible).toBe(true)
+      // `visible` is optional (omitted = visible at render); preserves
+      // byte-identical site.json after parse → re-serialize.
+      expect(el.visible).toBeUndefined()
       expect(el.anchor).toBe('center')
       expect(el.rotation).toBe(0)
       expect(result.data.sections[0].layers[0].depth).toBe(0)

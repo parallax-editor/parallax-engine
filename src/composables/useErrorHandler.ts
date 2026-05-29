@@ -1,4 +1,5 @@
 import { ref, type Ref } from 'vue'
+import { tr } from '../utils/locale'
 
 export interface EngineError {
   path: string
@@ -20,8 +21,8 @@ export function useErrorHandler(mode: 'dev' | 'prod'): ErrorHandler {
       errors.value = [...errors.value, error]
     } else {
       console.error(
-        `[parallax-engine] ${error.path}: ${error.message}`,
-        error.suggestion ? `\n  Suggestion: ${error.suggestion}` : '',
+        `${tr('error.engineLog')} ${error.path}: ${error.message}`,
+        error.suggestion ? `\n  ${tr('error.suggestion')}: ${error.suggestion}` : '',
       )
     }
   }
