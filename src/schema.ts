@@ -136,7 +136,11 @@ const elementCommon = {
   // flipY = vertical. Sin default → ausente = sin voltear (byte-idéntico).
   flipX: z.boolean().optional(),
   flipY: z.boolean().optional(),
-  visible: z.boolean().default(true),
+  // Optional + `el.visible !== false` at render so omitting the field is the
+  // same as `true` AND parsed JSON stays byte-identical (the editor's autosave
+  // won't churn every existing site.json with `"visible": true` on the next
+  // save). Same model as flipX/flipY and (now) layer/section visible below.
+  visible: z.boolean().optional(),
   interactive: z.boolean().default(false),
   link: linkSchema.optional(),
   animations: z.array(animationSchema).default([]),
@@ -180,6 +184,11 @@ export const gifElementSchema = z.object({
   // Freeze the GIF on hover (canvas snapshot swap). Useful for tiles that show
   // a still preview until the cursor enters.
   pauseOnHover: z.boolean().default(false),
+  // Per-element estimated playback duration (ms) used by `loop:false` to know
+  // when to freeze the GIF on its last visible frame. Author-configurable so
+  // short / long GIFs both behave correctly; the engine's hardcoded fallback
+  // is 2500 ms when this is absent.
+  playDurationMs: z.number().min(0).optional(),
 })
 
 export const textElementSchema = z.object({
@@ -260,9 +269,10 @@ export const layerSchema = z.object({
   // v1.1 additive: when false the layer (and all its elements) is excluded at
   // render time. The editor surface (LayersPanel + PropertiesPanel) is the only
   // place hidden layers stay visible — they're toggled off in the published
-  // site without having to delete and re-create them later. Defaults to true so
-  // existing site.json files are byte-equivalent after Zod default fill-in.
-  visible: z.boolean().default(true),
+  // site without having to delete and re-create them later. Optional + missing-
+  // means-visible at render so existing site.json files stay byte-identical
+  // after Zod fill-in (no `"visible": true` churn on autosave).
+  visible: z.boolean().optional(),
   elements: z.array(elementSchema).default([]),
 })
 
@@ -287,8 +297,9 @@ export const sectionSchema = z.object({
   background: backgroundSchema.optional(),
   transition: transitionSchema.optional(),
   // v1.1 additive: hidden sections are excluded at render time but kept editable
-  // in the LayersPanel. Same model as `layerSchema.visible` / element.visible.
-  visible: z.boolean().default(true),
+  // in the LayersPanel. Same model as `layerSchema.visible` / element.visible
+  // — optional and `!== false` at render so existing files stay byte-identical.
+  visible: z.boolean().optional(),
   layers: z.array(layerSchema).default([]),
 })
 

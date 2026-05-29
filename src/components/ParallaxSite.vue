@@ -201,21 +201,25 @@ function injectFonts() {
   if (typeof document === 'undefined') return
   // Single source of truth: the same pure builder SSR consumers call. Runtime
   // path keeps working for SPA hosts (editor, daniela-reyes-site after
-  // hydration) AND idempotently skips anything SSR already added — the
-  // [data-parallax-font="X"] attribute is the shared dedupe key.
+  // hydration) AND idempotently skips anything SSR already added — the unique
+  // `key` (e.g. parallax-font-Inter / parallax-font-preconnect-css) is what we
+  // mirror into a `data-parallax-key` attr so both preconnect entries (which
+  // share the data-parallax-font="preconnect" tag) get inserted exactly once.
   const head = buildSiteHead(normalizedSite.value.meta, { assetBase: props.assetBase })
   for (const entry of head.link) {
-    if (document.querySelector(`link[data-parallax-font="${entry['data-parallax-font']}"]`)) continue
+    if (document.querySelector(`link[data-parallax-key="${entry.key}"]`)) continue
     const el = document.createElement('link')
     el.rel = entry.rel
     el.href = entry.href
     el.setAttribute('data-parallax-font', entry['data-parallax-font'])
+    el.setAttribute('data-parallax-key', entry.key)
     document.head.appendChild(el)
   }
   for (const entry of head.style) {
-    if (document.querySelector(`style[data-parallax-font="${entry['data-parallax-font']}"]`)) continue
+    if (document.querySelector(`style[data-parallax-key="${entry.key}"]`)) continue
     const el = document.createElement('style')
     el.setAttribute('data-parallax-font', entry['data-parallax-font'])
+    el.setAttribute('data-parallax-key', entry.key)
     el.textContent = entry.textContent
     document.head.appendChild(el)
   }

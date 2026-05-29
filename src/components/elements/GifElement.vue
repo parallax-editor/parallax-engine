@@ -158,9 +158,11 @@ function applyInitialPlayback() {
   }
 }
 
-// loop:false approximation: after a conservative single-play duration, freeze
-// on the current frame. Best effort — see file comment.
-const LOOP_FREEZE_MS = 2500
+// loop:false approximation: after a single-play duration, freeze on the
+// current frame. Best effort — see file comment. The duration is author-
+// configurable via `playDurationMs` (schema) so short/long GIFs behave; the
+// hardcoded 2500ms is only a last-resort fallback when no value is provided.
+const LOOP_FREEZE_FALLBACK_MS = 2500
 let loopFreezeTimer: number | null = null
 function scheduleLoopFreeze() {
   if (el.value.loop !== false) return
@@ -168,9 +170,10 @@ function scheduleLoopFreeze() {
     clearTimeout(loopFreezeTimer)
     loopFreezeTimer = null
   }
+  const duration = (el.value as any).playDurationMs ?? LOOP_FREEZE_FALLBACK_MS
   loopFreezeTimer = window.setTimeout(() => {
     if (el.value.loop === false) freezeCurrent()
-  }, LOOP_FREEZE_MS)
+  }, duration)
 }
 
 function onPointerEnter() {

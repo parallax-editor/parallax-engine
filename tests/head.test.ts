@@ -20,13 +20,32 @@ describe('buildSiteHead', () => {
       ...baseMeta,
       fonts: [{ family: 'Inter', source: 'google' }],
     })
-    expect(out.link).toHaveLength(1)
-    const link = out.link[0]
-    expect(link.rel).toBe('stylesheet')
-    expect(link.href).toContain('family=Inter')
-    expect(link.href).toContain('wght@300;400;500;600;700')
-    expect(link['data-parallax-font']).toBe('Inter')
-    expect(link.key).toBe('parallax-font-Inter')
+    // Two preconnect entries + the stylesheet entry.
+    expect(out.link).toHaveLength(3)
+    const stylesheet = out.link.find((l) => l.rel === 'stylesheet')!
+    expect(stylesheet.href).toContain('family=Inter')
+    expect(stylesheet.href).toContain('wght@300;400;500;600;700')
+    expect(stylesheet['data-parallax-font']).toBe('Inter')
+    expect(stylesheet.key).toBe('parallax-font-Inter')
+  })
+
+  it('prepends preconnect link tags when at least one Google font is requested', () => {
+    const out = buildSiteHead({
+      ...baseMeta,
+      fonts: [{ family: 'Inter', source: 'google' }],
+    })
+    expect(out.link[0].rel).toBe('preconnect')
+    expect(out.link[0].href).toBe('https://fonts.googleapis.com')
+    expect(out.link[1].rel).toBe('preconnect')
+    expect(out.link[1].href).toBe('https://fonts.gstatic.com')
+  })
+
+  it('omits preconnect when only custom fonts are present', () => {
+    const out = buildSiteHead({
+      ...baseMeta,
+      fonts: [{ family: 'Mystery', source: 'custom', url: 'fonts/m.otf' }],
+    })
+    expect(out.link.filter((l) => l.rel === 'preconnect')).toHaveLength(0)
   })
 
   it('honors a narrower googleWeights override', () => {
@@ -34,7 +53,8 @@ describe('buildSiteHead', () => {
       { ...baseMeta, fonts: [{ family: 'Inter', source: 'google' }] },
       { googleWeights: '400;700' },
     )
-    expect(out.link[0].href).toContain('wght@400;700')
+    const stylesheet = out.link.find((l) => l.rel === 'stylesheet')!
+    expect(stylesheet.href).toContain('wght@400;700')
   })
 
   it('emits @font-face style block for custom fonts', () => {
@@ -67,7 +87,8 @@ describe('buildSiteHead', () => {
       ...baseMeta,
       fonts: [{ family: 'Playfair Display', source: 'google' }],
     })
-    expect(out.link[0].href).toContain('family=Playfair%20Display')
+    const stylesheet = out.link.find((l) => l.rel === 'stylesheet')!
+    expect(stylesheet.href).toContain('family=Playfair%20Display')
   })
 
   it('is idempotent — same input yields byte-identical output', () => {

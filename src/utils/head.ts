@@ -63,8 +63,10 @@ export function buildSiteHead(
   const weights = opts.googleWeights || DEFAULT_GOOGLE_WEIGHTS
   const fonts = meta.fonts ?? []
 
+  let hasGoogleFont = false
   for (const font of fonts) {
     if (font.source === 'google') {
+      hasGoogleFont = true
       link.push({
         key: `parallax-font-${font.family}`,
         rel: 'stylesheet',
@@ -78,6 +80,28 @@ export function buildSiteHead(
         'data-parallax-font': font.family,
       })
     }
+  }
+
+  // Standard Google Fonts perf trick — preconnect to both the CSS and the
+  // woff2 origins so the browser can begin the TCP+TLS handshake before the
+  // stylesheet finishes downloading. Emitted only when there's at least one
+  // Google font; same dedupe key as the stylesheet entries so unhead/Nuxt
+  // pickup is idempotent.
+  if (hasGoogleFont) {
+    link.unshift(
+      {
+        key: 'parallax-font-preconnect-css',
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+        'data-parallax-font': 'preconnect',
+      },
+      {
+        key: 'parallax-font-preconnect-static',
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        'data-parallax-font': 'preconnect',
+      },
+    )
   }
 
   return { link, style }
