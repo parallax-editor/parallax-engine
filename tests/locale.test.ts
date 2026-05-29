@@ -54,4 +54,24 @@ describe('engine locale', () => {
     setEngineLocale('en')
     expect(tr('error.engineLog')).toBe('[parallax-engine]')
   })
+
+  it('is reactive — Vue effect re-runs when locale flips', async () => {
+    // Why this matters: ErrorOverlay calls `tr(...)` directly in its template.
+    // Without reactivity, switching the locale while the overlay is mounted
+    // leaves the labels stuck on the boot-time locale until the next forced
+    // re-render. A simple `let` for currentLocale would NOT trigger Vue's
+    // dep tracking; the shallowRef in src/utils/locale.ts is what makes
+    // tr() participate in Vue's reactivity system.
+    const { effect } = await import('vue')
+    setEngineLocale('es')
+    const seen: string[] = []
+    const stop = effect(() => {
+      seen.push(tr('error.header'))
+    })
+    expect(seen).toEqual(['Problemas en site.json'])
+    setEngineLocale('en')
+    // Vue's effect re-runs synchronously when its reactive dep changes.
+    expect(seen).toEqual(['Problemas en site.json', 'site.json issues'])
+    stop.effect?.stop?.() ?? (stop as any).stop?.()
+  })
 })

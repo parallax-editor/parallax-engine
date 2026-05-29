@@ -4,9 +4,16 @@
 // back-compat. Consumers that want English call `setEngineLocale('en')`
 // once at boot; subsequent error labels render in the chosen locale.
 //
+// Reactivity: the active locale lives in a Vue `shallowRef`, so `tr()`
+// invocations from Vue templates (the engine's ErrorOverlay, etc.) re-run
+// when the consumer flips `setEngineLocale`. Outside Vue, `tr()` still
+// works as a plain function — the ref is just an extra subscription bit.
+//
 // Scope intentionally small: this only covers strings the engine itself
 // surfaces (overlay labels, console prefixes). Site content is NOT
 // translated here — that lives in `site.json`.
+
+import { shallowRef } from 'vue'
 
 export type EngineLocale = 'es' | 'en'
 
@@ -37,23 +44,26 @@ const dictionaries: Record<EngineLocale, Dict> = {
   },
 }
 
-let currentLocale: EngineLocale = 'es'
+// `shallowRef` so Vue templates that call `tr()` re-render on locale change.
+// Plain JS callers ignore the ref wrapping entirely (they read .value below).
+const currentLocale = shallowRef<EngineLocale>('es')
 
 export function setEngineLocale(locale: EngineLocale): void {
-  currentLocale = locale
+  currentLocale.value = locale
 }
 
 export function getEngineLocale(): EngineLocale {
-  return currentLocale
+  return currentLocale.value
 }
 
 /**
  * Tiny translation helper. Looks up `key` in the current locale's
  * dictionary, falls back to Spanish, then to the key itself. Supports
- * `{name}` interpolation from `params`.
+ * `{name}` interpolation from `params`. Reactive: reading `currentLocale.value`
+ * registers a Vue dep so a re-render fires when the locale changes.
  */
 export function tr(key: string, params?: Record<string, string | number>): string {
-  const dict = dictionaries[currentLocale] ?? dictionaries.es
+  const dict = dictionaries[currentLocale.value] ?? dictionaries.es
   let str = dict[key] ?? dictionaries.es[key] ?? key
   if (params) {
     for (const [k, v] of Object.entries(params)) {
