@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { inject, type Ref } from 'vue'
 import type { EngineError } from '../composables/useErrorHandler'
+import { tr } from '../utils/locale'
 
 const errors = inject<Ref<EngineError[]>>('parallaxErrors')
 const emit = defineEmits<{ dismiss: [] }>()
+
+function errorLabel(count: number): string {
+  return count > 1 ? tr('error.label.plural') : tr('error.label.single')
+}
 </script>
 
 <template>
   <div v-if="errors && errors.length > 0" class="parallax-error-overlay">
     <div class="parallax-error-header">
-      <span>[parallax-engine] {{ errors.length }} error{{ errors.length > 1 ? 'es' : '' }}</span>
-      <button @click="emit('dismiss')" class="parallax-error-close">&times;</button>
+      <span>{{ tr('error.engineLog') }} {{ errors.length }} {{ errorLabel(errors.length) }}</span>
+      <button @click="emit('dismiss')" class="parallax-error-close" :aria-label="tr('error.dismiss')">&times;</button>
     </div>
     <ul class="parallax-error-list">
       <li v-for="(err, i) in errors" :key="i" class="parallax-error-item">

@@ -157,6 +157,13 @@ const positionStyle = computed(() => {
   // takes effect for wrapping text, an explicit width, lines mode, and
   // multi-line <p>.
   if (e.textAlign) base.textAlign = e.textAlign
+  // whiteSpace: author-controlled CSS (v1.1 additive). Default fallback is
+  // 'pre-wrap' so consecutive spaces and newlines authors type into the editor
+  // are preserved at render. Split mode handles its own white-space rules above
+  // (host nowrap / lines pre-wrap), so we don't override it there.
+  if (!splitParts.value || !base.whiteSpace) {
+    base.whiteSpace = e.whiteSpace ?? 'pre-wrap'
+  }
   return base
 })
 
