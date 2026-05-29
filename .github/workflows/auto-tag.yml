@@ -1,0 +1,90 @@
+# Auto-tag on package.json version bump
+#
+# When a push to main changes package.json["version"] to a value that has no
+# matching `vX.Y.Z` tag yet, this workflow creates that tag and pushes it
+# back. The `publish.yml` workflow (already wired) reacts to `v*` tag pushes
+# and runs the npm publish via Trusted Publishing (OIDC).
+#
+# Net effect: bumping the version in package.json on a PR → merge to main is
+# enough to ship to npm. No human needs to remember to tag separately.
+#
+# Why this lives in its own file (not folded into publish.yml):
+#   - publish.yml runs in the `npm-publish` environment with `id-token: write`
+#     scoped to OIDC. Auto-tag here only needs `contents: write`, no OIDC.
+#   - Keeping them separate means a tag push (manual or automated) still
+#     triggers exactly one publish path; this workflow is a no-op when the tag
+#     already exists.
+#
+# Safe by design:
+#   - Skips when the tag already exists (idempotent re-runs / manual tagging
+#     beforehand work fine).
+#   - Skips when the version field didn't actually change.
+#   - Uses the workflow's GITHUB_TOKEN (no PAT); branch protection on `main`
+#     does NOT apply to tag pushes, so this writes only the tag, never main.
+
+name: Auto-tag on version bump
+
+on:
+  push:
+    branches: [main]
+    paths: ['package.json']
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main (with full history)
+        uses: actions/checkout@v6
+        with:
+          # Need history so we can diff package.json against the previous
+          # commit and only tag when the version field actually changed.
+          fetch-depth: 0
+
+      - name: Read current version
+        id: current
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Current package.json version: $version"
+
+      - name: Skip if previous commit had the same version
+        id: changed
+        run: |
+          # If the file existed in the previous commit, compare. If not (first
+          # ever commit / new file), treat as changed.
+          if git cat-file -e HEAD~1:package.json 2>/dev/null; then
+            prev=$(git show HEAD~1:package.json | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{console.log(JSON.parse(s).version)})")
+            echo "Previous version: $prev"
+            if [ "$prev" = "${{ steps.current.outputs.version }}" ]; then
+              echo "Version unchanged → skipping tag"
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if tag already exists
+        if: steps.changed.outputs.changed == 'true'
+        id: exists
+        run: |
+          tag="v${{ steps.current.outputs.version }}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists → skipping"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.changed.outputs.changed == 'true' && steps.exists.outputs.exists == 'false'
+        env:
+          TAG: v${{ steps.current.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "✓ Pushed $TAG — publish.yml will react on the tag push."
