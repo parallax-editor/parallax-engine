@@ -13,8 +13,10 @@ yarn typecheck  # vue-tsc --noEmit
 
 ## Exports
 
-- `parallax-engine` — Vue components, composables, utils, config helper
-- `parallax-engine/schema` — Zod schema + TypeScript types (no Vue dependency)
+- `parallax-engine` — Vue components, composables, utils, config helper.
+- `parallax-engine/schema` — Zod schema + TypeScript types (no Vue dependency).
+- `parallax-engine/nuxt` — Nuxt 3 module (opt-in; `@nuxt/kit` is a peer dep marked optional). Two presets — `multi-tenant` (per-URL private sites: no home, robots disallow, no sitemap, no GA4) and `linked-home` (public portfolio with an engine-editable `/` that links out to other sites via `link.site` cross-fade). Consumers using this subpath drop a Nuxt site's scaffolding to ~3 files (`package.json`, `nuxt.config.ts`, `content/`). See "Nuxt module" below.
+- `parallax-engine/style.css` — engine stylesheet (split-text reveal, FormBlock layout, error overlay, transitions).
 
 ## Architecture
 
@@ -56,6 +58,50 @@ yarn typecheck  # vue-tsc --noEmit
 The engine ships to **npm** as `parallax-engine` (GPL-3.0-or-later). Consumers install with `yarn add @parallax-editor/parallax-engine` and declare the standard dep (`"@parallax-editor/parallax-engine": "^x.y.z"`). They need `vite.resolve.dedupe: ['vue']` to avoid double Vue instances.
 
 For simultaneous engine + consumer development (without publishing): `yarn link` or [`yalc`](https://github.com/wclr/yalc). The background build (`yarn dev`) keeps `dist/` fresh; the consumer picks up changes on reload.
+
+## Nuxt module (`parallax-engine/nuxt`, added in 0.2.0)
+
+Sub-path opt-in. Imported only via `modules: ['@parallax-editor/parallax-engine/nuxt']` — the rest of the engine stays framework-agnostic and pays no `@nuxt/kit` cost.
+
+```ts
+// nuxt.config.ts (multi-tenant — private per-URL sites)
+export default defineNuxtConfig({
+  modules: ['@parallax-editor/parallax-engine/nuxt'],
+  parallax: {
+    preset: 'multi-tenant',
+    siteUrl: process.env.SITE_URL,
+  },
+})
+```
+
+```ts
+// nuxt.config.ts (linked-home — public portfolio with engine-editable /)
+export default defineNuxtConfig({
+  modules: ['@parallax-editor/parallax-engine/nuxt'],
+  parallax: {
+    preset: 'linked-home',
+    siteUrl: process.env.SITE_URL,
+    seo: { ga4Id: process.env.GA4_ID },
+    componentsConfig: './parallax.config.ts',
+  },
+})
+```
+
+What the module does (per preset, gated so the other preset doesn't pay for it):
+
+- **Content discovery** — scans `content/<slug>/site.json` at build time, emits `nitro.prerender.routes` (`/<slug>` for both presets, `/` for linked-home when `content/home/site.json` exists).
+- **Asset routing** — registers `nitro.publicAssets` so `images/foo.png` references in `site.json` resolve as `/content/<slug>/images/foo.png` in dev and SSG output.
+- **SSR fonts** — runtime pages call `buildSiteHead()` so the prerendered HTML carries `<link rel="stylesheet" data-parallax-font>` tags for the first paint (linked-home `/` only; `/<slug>` body fetches client-side).
+- **SEO** — build-time snapshot of `meta` per slug → `runtimeConfig.public.parallax.seoMap` → `useSiteSeo(slug)` for `<meta og:*>` in the prerendered HTML; body stays a runtime fetch so sites added post-deploy work via the SPA fallback.
+- **SPA fallback** — linked-home emits a `200.html` copy of `404.html` on `prerender:done` so an S3 error-document config can hydrate new slugs at runtime.
+- **robots.txt** — always REGENERATED (never inherits a stray legacy version). Disallow-all for `multi-tenant`, `Allow: /` for `linked-home`.
+- **sitemap.xml** — linked-home + opt-in; lists `/` + every known slug at build time.
+- **GA4** — optional `seo.ga4Id` injects the standard gtag loader + init into `app.head`.
+- **Custom components** — `componentsConfig: './parallax.config.ts'` exposes the consumer's registry to the runtime pages via a virtual `#parallax-components` import; absent it, only the built-in `FormBlock` is available.
+
+Runtime composables (auto-imported by Nuxt): `useSiteContent(slug)`, `loadSiteContent(slug)`, `useSiteSeo(slug)`. Runtime component (linked-home only): `<SiteHost>` — handles in-engine cross-fade between sites + `history.pushState` so the URL bar matches without a Nuxt remount.
+
+Implementation: `src/nuxt/module.ts` + `src/nuxt/runtime/` (kept OUT of the main `vue-tsc` typecheck because runtime files reference Nuxt globals that are only present at consumer build time; their own Nuxt project type-checks them). The build is wired by `scripts/build-nuxt-module.mjs` (esbuild for the module entry → `dist/nuxt/module.mjs`, plus a copy of `src/nuxt/runtime/` → `dist/nuxt/runtime/`). Tests live next to the engine tests (`tests/nuxt-presets.test.ts`, `tests/nuxt-scan-content.test.ts`).
 
 ## Schema v1.1
 
