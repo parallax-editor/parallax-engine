@@ -1,19 +1,21 @@
 # Auto-tag on package.json version bump
 #
 # When a push to main changes package.json["version"] to a value that has no
-# matching `vX.Y.Z` tag yet, this workflow creates that tag and pushes it
-# back. The `publish.yml` workflow (already wired) reacts to `v*` tag pushes
-# and runs the npm publish via Trusted Publishing (OIDC).
+# matching `vX.Y.Z` tag yet, this workflow creates that tag and then calls
+# `publish.yml` (`workflow_call`) to ship the new version to npm.
 #
 # Net effect: bumping the version in package.json on a PR → merge to main is
 # enough to ship to npm. No human needs to remember to tag separately.
 #
-# Why this lives in its own file (not folded into publish.yml):
-#   - publish.yml runs in the `npm-publish` environment with `id-token: write`
-#     scoped to OIDC. Auto-tag here only needs `contents: write`, no OIDC.
-#   - Keeping them separate means a tag push (manual or automated) still
-#     triggers exactly one publish path; this workflow is a no-op when the tag
-#     already exists.
+# Why we CALL publish.yml instead of relying on the tag push:
+#   GitHub Actions' GITHUB_TOKEN has anti-loop protection — events generated
+#   by GITHUB_TOKEN (like the `git push origin <tag>` below) do NOT trigger
+#   downstream workflows that listen on `push: tags`. The previous wiring
+#   created the tag but `publish.yml`'s `on: push: tags: ['v*']` trigger
+#   stayed dormant, so v0.1.3 had to be re-pushed by hand from a laptop to
+#   actually publish. `workflow_call` is GitHub's blessed way to chain
+#   workflows without a PAT and keeps the OIDC subject pointing at
+#   publish.yml — npm Trusted Publishing keeps working untouched.
 #
 # Safe by design:
 #   - Skips when the tag already exists (idempotent re-runs / manual tagging
@@ -35,6 +37,11 @@ permissions:
 jobs:
   tag:
     runs-on: ubuntu-latest
+    outputs:
+      # Propagate the "did we just create a tag" decision + the tag name to
+      # the publish job below, so it only runs on a real new version.
+      tagged: ${{ steps.create.outputs.tagged }}
+      tag: ${{ steps.create.outputs.tag }}
     steps:
       - name: Checkout main (with full history)
         uses: actions/checkout@v6
@@ -79,6 +86,7 @@ jobs:
           fi
 
       - name: Create and push tag
+        id: create
         if: steps.changed.outputs.changed == 'true' && steps.exists.outputs.exists == 'false'
         env:
           TAG: v${{ steps.current.outputs.version }}
@@ -87,4 +95,22 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "$TAG"
           git push origin "$TAG"
-          echo "✓ Pushed $TAG — publish.yml will react on the tag push."
+          echo "✓ Pushed $TAG — invoking publish.yml via workflow_call."
+          # Surface the tag name to the downstream publish job. We can't rely
+          # on the tag push event firing publish.yml on its own (GITHUB_TOKEN
+          # anti-loop), so the `publish` job below calls publish.yml directly.
+          echo "tagged=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  # Chain into publish.yml as a reusable workflow. Runs ONLY when the `tag`
+  # job above actually created a new tag (skipped on no-op runs). `secrets:
+  # inherit` passes any repo/environment secrets through; the called workflow
+  # is what enters the `npm-publish` environment and gets `id-token: write`
+  # for OIDC — auto-tag itself stays out of that environment.
+  publish:
+    needs: tag
+    if: needs.tag.outputs.tagged == 'true'
+    uses: ./.github/workflows/publish.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit
