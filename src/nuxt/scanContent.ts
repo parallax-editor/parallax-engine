@@ -8,7 +8,7 @@
 import { existsSync, readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import { resolve } from 'node:path'
 import type { SiteSeoMap } from './types'
-import { isRelativeAsset } from './isRelativeAsset'
+import { isRelativeAsset } from './runtime/isRelativeAsset'
 
 /**
  * Returns the slugs (folder names) that have a `site.json`, in their natural
