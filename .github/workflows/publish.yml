@@ -21,11 +21,13 @@ on:
   # workflow by itself. `workflow_call` sidesteps that — the called job runs
   # under the SAME OIDC subject (job_workflow_ref = .github/workflows/publish.yml)
   # that npm Trusted Publishing expects, so no Trusted Publisher reconfig is
-  # needed. The `tag` input is informational (carried in run logs).
+  # needed. The `tag` input pins the checkout ref (see the checkout step) so
+  # we publish the exact tagged commit even if main moves between the bump
+  # and this run.
   workflow_call:
     inputs:
       tag:
-        description: Tag being published (e.g. v0.1.3); informational only — the checkout still uses the calling workflow's ref.
+        description: Tag being published (e.g. `v0.1.3`). Used to pin the checkout ref below so we publish the exact tagged commit even if main has moved on between the version bump and this run.
         required: true
         type: string
 

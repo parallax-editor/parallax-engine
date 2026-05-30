@@ -109,7 +109,10 @@ jobs:
   # for OIDC — auto-tag itself stays out of that environment.
   publish:
     needs: tag
-    if: needs.tag.outputs.tagged == 'true'
+    # `needs.tag.result == 'success'` guards against a partially-failed `tag`
+    # job that still managed to emit `tagged=true` before crashing — without
+    # it, that edge case would trigger publish on a half-done tag run.
+    if: needs.tag.result == 'success' && needs.tag.outputs.tagged == 'true'
     uses: ./.github/workflows/publish.yml
     with:
       tag: ${{ needs.tag.outputs.tag }}
