@@ -58,9 +58,24 @@ onUnmounted(() => {
 const sectionProgress = computed(() => {
   void scrollY.value
   void scrollNonce.value // recalcula también ante scroll de contenedores anidados (editor)
-  if (!isVisible.value || !sectionRef.value) return 0
+  // NOTE: do NOT bail on `!isVisible.value` here. The IntersectionObserver above
+  // is in CANVAS-WINDOW space (default root). In the editor the artboard lives
+  // inside a `transform: scale(zoom) translate(pan)` wrapper, so a strong
+  // zoom-out + pan moves the section's SCREEN rect off the editor window even
+  // though the section is conceptually still onscreen → isVisible flips false,
+  // sectionProgress collapsed to 0 and every scroll-trigger fadeIn snapped its
+  // text back to opacity 0 ("text disappears on zoom out + pan"). Even outside
+  // the editor, gating on isVisible is wrong: a section scrolled BELOW the
+  // viewport (rect.top very negative) should report progress=1 so scroll-
+  // animated elements remain at their `to` state; the old gate collapsed them
+  // to `from`. The clamp() below handles above/below-viewport correctly without
+  // the gate, and getBoundingClientRect is already called for every visible
+  // section on every scroll frame so the cost is unchanged in steady state.
+  // isVisible is still useful elsewhere (e.g. gating loop-anim rAFs).
+  if (!sectionRef.value) return 0
   const rect = sectionRef.value.getBoundingClientRect()
   const totalTravel = viewportHeight.value + rect.height
+  if (totalTravel <= 0) return 0
   const traveled = viewportHeight.value - rect.top
   return Math.max(0, Math.min(1, traveled / totalTravel))
 })
