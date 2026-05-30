@@ -16,6 +16,7 @@
  */
 
 import type { Site } from '../../../schema'
+import { isRelativeAsset } from '../../isRelativeAsset'
 
 export function prefixAssetPaths(site: Site, slug: string): Site {
   const base = `/content/${slug}/`
@@ -42,19 +43,6 @@ export function prefixAssetPaths(site: Site, slug: string): Site {
     prefixSectionTree(copy.views.mobile?.sections, base)
   }
   return copy
-}
-
-/** Matches isRelativeAsset in engine `utils/units.ts`. Kept inline (no engine
- *  cross-import) so the runtime stays tree-shakable for non-Nuxt consumers. */
-function isRelativeAsset(p: string): boolean {
-  return (
-    !p.startsWith('http://') &&
-    !p.startsWith('https://') &&
-    !p.startsWith('//') &&
-    !p.startsWith('/') &&
-    !p.startsWith('data:') &&
-    !p.startsWith('blob:')
-  )
 }
 
 function prefixSectionTree(sections: Site['sections'] | undefined, base: string): void {

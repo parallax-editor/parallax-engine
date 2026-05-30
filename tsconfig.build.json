@@ -13,6 +13,6 @@
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "src/nuxt/**"
+    "src/nuxt/runtime/**"
   ]
 }

@@ -17,21 +17,11 @@
  * loaded server-side, so the engine injects them on mount instead (same as
  * a plain SPA).
  */
-import { computed, defineAsyncComponent } from 'vue'
+import { computed, ref } from 'vue'
 import { ParallaxSite, FormBlock, buildSiteHead } from '../../..'
 import { useSiteContent } from '../composables/useSiteContent'
 import { useSiteSeo, buildCanonical } from '../composables/useSiteSeo'
 import SiteHost from '../components/SiteHost.vue'
-// Resolved by the module: a runtime alias either points at the consumer's
-// parallax.config.ts (custom components registry) or at a stub re-exporting
-// only `{ default: { components: {} } }` when `componentsConfig` wasn't set.
-// Imported lazily so a multi-tenant repo doesn't ship the import in its
-// bundle when there's nothing to register.
-const consumerComponents = defineAsyncComponent(async () => {
-  const mod = await import('#parallax-components')
-  return { template: '<span/>', __components: mod.default?.components ?? {} } as any
-})
-void consumerComponents // keep reference (avoid tree-shaking when actually used)
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug || ''))

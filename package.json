@@ -55,8 +55,12 @@
     "vue": "^3.4.0"
   },
   "peerDependenciesMeta": {
-    "@nuxt/kit": { "optional": true },
-    "@nuxt/schema": { "optional": true }
+    "@nuxt/kit": {
+      "optional": true
+    },
+    "@nuxt/schema": {
+      "optional": true
+    }
   },
   "dependencies": {
     "lenis": "^1.1.13",
@@ -65,8 +69,10 @@
   "devDependencies": {
     "@nuxt/kit": "^3.13.0",
     "@nuxt/schema": "^3.13.0",
+    "@types/node": "^25.9.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "esbuild": "^0.28.0",
+    "nitropack": "^2.13.4",
     "typescript": "~6.0.3",
     "vite": "^8.0.14",
     "vitest": "^4.1.7",

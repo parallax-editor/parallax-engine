@@ -67,7 +67,6 @@ async function go(slug: string, opts: { push?: boolean } = {}) {
   // source has no out configured, the swap is instant.
   const sourceTransition = (outgoing as any)?.meta?.transition
   const transitionType = sourceTransition?.out
-  txDuration.value = sourceTransition?.duration || 600
 
   current.value = { slug, site }
   if (typeof window !== 'undefined') window.scrollTo(0, 0)
@@ -75,6 +74,10 @@ async function go(slug: string, opts: { push?: boolean } = {}) {
     try { history.pushState({ slug }, '', slugToUrl(slug)) } catch { /* no-op */ }
   }
   if (outgoing && transitionType) {
+    // Only touched when we'll actually run the transition; the value stays
+    // stable across instant swaps so a later transitioned navigation
+    // doesn't pick up a leaked-from-elsewhere duration.
+    txDuration.value = sourceTransition?.duration || 600
     fadeSite.value = outgoing
     fadeOut.value = false
     await nextTick()

@@ -23,6 +23,18 @@ declare const useAsyncData: (...args: any[]) => any
 declare const useRuntimeConfig: () => any
 
 export async function loadSiteContent(slug: string): Promise<Site | null> {
+  // Fail fast (and informatively) if someone imports this from outside a
+  // Nuxt context — `useRuntimeConfig` / `$fetch` are auto-imports, undefined
+  // anywhere else. Without this guard the user gets a downstream
+  // "useRuntimeConfig is not defined" with no breadcrumb back to "you need
+  // the Nuxt module installed".
+  if (typeof useRuntimeConfig !== 'function') {
+    throw new Error(
+      '[parallax-engine/nuxt] loadSiteContent must run inside a Nuxt app. ' +
+        'Did you import it directly instead of relying on auto-imports from the ' +
+        '`@parallax-editor/parallax-engine/nuxt` module?',
+    )
+  }
   try {
     let json: unknown
     if (import.meta.server) {

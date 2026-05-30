@@ -5,9 +5,10 @@
  * to invoke from `setup()` before kit is fully wired.
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import { resolve } from 'node:path'
 import type { SiteSeoMap } from './types'
+import { isRelativeAsset } from './isRelativeAsset'
 
 /**
  * Returns the slugs (folder names) that have a `site.json`, in their natural
@@ -16,9 +17,13 @@ import type { SiteSeoMap } from './types'
  */
 export function listSiteSlugs(contentRoot: string, homeSlug?: string): string[] {
   if (!existsSync(contentRoot)) return []
-  let entries: ReturnType<typeof readdirSync>
+  // `withFileTypes: true` + `encoding: 'utf-8'` pins the overload to the
+  // string-Dirent variant. Without `encoding`, recent @types/node default to
+  // the buffer variant whose `.name` is a `NonSharedBuffer`, which would
+  // poison every downstream comparison.
+  let entries: Dirent[]
   try {
-    entries = readdirSync(contentRoot, { withFileTypes: true })
+    entries = readdirSync(contentRoot, { withFileTypes: true, encoding: 'utf-8' })
   } catch {
     return []
   }
@@ -74,8 +79,16 @@ export function buildSeoMap(contentRoot: string, slugs: string[]): SiteSeoMap {
         ogImage: normaliseOgImage(slug, ogImage),
         lang: meta.lang,
       }
-    } catch {
-      /* skip; runtime validation will surface schema errors */
+    } catch (e) {
+      // Don't break the build for one bad file — runtime validation will
+      // surface schema errors on visit — but DO log so the slug's silent
+      // disappearance from the seoMap (and from sitemap.xml when enabled)
+      // shows up in the build output. Otherwise a stray trailing comma in
+      // a `meta` block silently erases the OG image and no one notices.
+      console.warn(
+        `[parallax-engine/nuxt] skipping "${slug}" in seoMap (site.json read/parse failed):`,
+        e instanceof Error ? e.message : e,
+      )
     }
   }
   return out
@@ -83,9 +96,8 @@ export function buildSeoMap(contentRoot: string, slugs: string[]): SiteSeoMap {
 
 function normaliseOgImage(slug: string, og: string | undefined): string | undefined {
   if (!og) return undefined
-  if (og.startsWith('http://') || og.startsWith('https://')) return og
-  if (og.startsWith('/') || og.startsWith('data:')) return og
   // Relative author input → prefix with /content/<slug>/ so the
   // baked-into-HTML <meta og:image> resolves where the asset actually lives.
-  return `/content/${slug}/${og}`
+  // Absolute / root-relative / data: URLs are left as-is.
+  return isRelativeAsset(og) ? `/content/${slug}/${og}` : og
 }

@@ -29,6 +29,26 @@ import type { ParallaxModuleOptions } from './types'
 import { resolveOptions } from './presets'
 import { listSiteSlugs, hasHomeSlug, buildSeoMap } from './scanContent'
 
+// `@nuxt/schema` 3.21 still doesn't include `nitro` on `NuxtOptions` nor
+// the `nitro:init` / `nitro:build:public-assets` hooks on `NuxtHooks`,
+// even though they're valid at runtime (Nuxt forwards them to Nitro). We
+// augment the schema locally so `nuxt.options.nitro.*` and
+// `nuxt.hook('nitro:init', …)` typecheck — if/when @nuxt/schema closes
+// the gap, this augmentation merges into the upstream definitions with
+// no harm. `Nitro` and `NitroConfig` come from `nitropack`, which is
+// already a transitive dep of `@nuxt/kit`.
+import type { Nitro, NitroConfig } from 'nitropack'
+
+declare module '@nuxt/schema' {
+  interface NuxtOptions {
+    nitro: NitroConfig
+  }
+  interface NuxtHooks {
+    'nitro:init': (nitro: Nitro) => void | Promise<void>
+    'nitro:build:public-assets': (nitro: Nitro) => void | Promise<void>
+  }
+}
+
 export default defineNuxtModule<ParallaxModuleOptions>({
   meta: {
     name: '@parallax-editor/parallax-engine/nuxt',
@@ -108,22 +128,29 @@ export default defineNuxtModule<ParallaxModuleOptions>({
     // for slugs that didn't exist at build time — the bucket's
     // error-document config serves it, the SPA hydrates, useSiteContent
     // fetches the new site at runtime.
+    //
+    // Registered via `nuxt.hook('nitro:init', ...)` so Nitro itself owns the
+    // hook bus and our handler is added through its `hooks.hook(...)` API.
+    // Mutating `nuxt.options.nitro.hooks['prerender:done']` directly would
+    // overwrite whatever a previously-loaded module installed (or be silently
+    // overwritten by one loaded after us); going through `nitro.hooks.hook`
+    // chains correctly with any other registered listener AND handles the
+    // array-of-functions shape Nitro hook config can take.
     if (options.preset === 'linked-home') {
       nuxt.options.nitro.prerender.failOnError = false
-      nuxt.options.nitro.hooks = nuxt.options.nitro.hooks || {}
-      const prevDone = nuxt.options.nitro.hooks['prerender:done']
-      nuxt.options.nitro.hooks['prerender:done'] = async function (this: any, ...args: any[]) {
-        try {
-          const out = resolve(nuxt.options.rootDir, '.output', 'public')
-          const { existsSync, copyFileSync } = await import('node:fs')
-          const src = resolve(out, '404.html')
-          const dest = resolve(out, '200.html')
-          if (existsSync(src) && !existsSync(dest)) copyFileSync(src, dest)
-        } catch (e) {
-          console.warn('[parallax-engine/nuxt] 200.html SPA fallback emit failed:', e)
-        }
-        if (typeof prevDone === 'function') await prevDone.apply(this, args)
-      }
+      nuxt.hook('nitro:init', (nitro) => {
+        nitro.hooks.hook('prerender:done', async () => {
+          try {
+            const out = resolve(nuxt.options.rootDir, '.output', 'public')
+            const { existsSync, copyFileSync } = await import('node:fs')
+            const src = resolve(out, '404.html')
+            const dest = resolve(out, '200.html')
+            if (existsSync(src) && !existsSync(dest)) copyFileSync(src, dest)
+          } catch (e) {
+            console.warn('[parallax-engine/nuxt] 200.html SPA fallback emit failed:', e)
+          }
+        })
+      })
     }
 
     // ── robots.txt (always written, never inherited) ──────────────────────
@@ -142,16 +169,9 @@ export default defineNuxtModule<ParallaxModuleOptions>({
         return lines.join('\n') + '\n'
       },
     })
-    // Hook the generated robots.txt into the build output. Nitro's
-    // `publicAssets` is the simplest way to make Nuxt copy a file from
-    // `.nuxt/` into `.output/public/`.
-    nuxt.options.nitro.publicAssets.push({
-      dir: resolve(nuxt.options.buildDir, '.'),
-      baseURL: '/',
-    })
-    // The above publicAssets entry exposes the entire `.nuxt` dir, which is
-    // not what we want. Use a hook instead to copy the single file post-build.
-    nuxt.options.nitro.publicAssets.pop()
+    // Copy the generated robots.txt into `.output/public/` post-build via a
+    // hook (a `nitro.publicAssets` entry pointing at `.nuxt/` would expose
+    // the whole build dir, not just the one file we want).
     nuxt.hook('nitro:build:public-assets', async () => {
       try {
         const src = resolve(nuxt.options.buildDir, 'parallax-engine-robots.txt')
