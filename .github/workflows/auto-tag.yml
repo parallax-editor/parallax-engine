@@ -30,16 +30,6 @@ on:
   push:
     branches: [main]
     paths: ['package.json']
-
-# Permissions are scoped per-job below — the `tag` job needs `contents:write`
-# to push the new tag, the `publish` job needs `id-token:write` so the
-# reusable `publish.yml` it calls can mint the npm OIDC token. Declaring
-# them per-job is the documented way to wire workflow_call: a `permissions`
-# block on the calling JOB sets the upper bound for the called workflow. A
-# repo-wide block here would either grant id-token to the tag step (we'd
-# rather not) or, more commonly, omit it and break the publish job at
-# startup — which is exactly what happened on v0.2.0's merge.
-
 jobs:
   tag:
     runs-on: ubuntu-latest
@@ -121,13 +111,6 @@ jobs:
     # job that still managed to emit `tagged=true` before crashing — without
     # it, that edge case would trigger publish on a half-done tag run.
     if: needs.tag.result == 'success' && needs.tag.outputs.tagged == 'true'
-    # workflow_call ceiling: the CALLED workflow (`publish.yml`) requests
-    # `id-token: write` for npm Trusted Publishing OIDC. GitHub's policy says
-    # the called workflow can only receive permissions that the CALLER
-    # already grants. Without `id-token: write` here, the reusable workflow
-    # fails to start with `startup_failure` and v0.X.0 silently never
-    # publishes — observed on the v0.2.0 merge. `contents: read` mirrors
-    # what publish.yml actually needs to checkout the tagged ref.
     permissions:
       contents: read
       id-token: write
