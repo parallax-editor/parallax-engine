@@ -30,13 +30,11 @@ on:
   push:
     branches: [main]
     paths: ['package.json']
-
-permissions:
-  contents: write
-
 jobs:
   tag:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       # Propagate the "did we just create a tag" decision + the tag name to
       # the publish job below, so it only runs on a real new version.
@@ -113,6 +111,9 @@ jobs:
     # job that still managed to emit `tagged=true` before crashing — without
     # it, that edge case would trigger publish on a half-done tag run.
     if: needs.tag.result == 'success' && needs.tag.outputs.tagged == 'true'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/publish.yml
     with:
       tag: ${{ needs.tag.outputs.tag }}
