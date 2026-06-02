@@ -291,10 +291,10 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@nuxt/kit@^3.13.0":
-  version "3.21.6"
-  resolved "https://registry.yarnpkg.com/@nuxt/kit/-/kit-3.21.6.tgz#65dae6ecd1f02bae5befce7d0031ff32cfe0364c"
-  integrity sha512-5VOwxUcoM/z6w4c75hQrikHpY+TzjTLZQ+QnuO7KajyGx0IJBLVy1lw25oy79leF+GgyjJJO1cHfUfWeuEDCzA==
+"@nuxt/kit@^4.4.6":
+  version "4.4.6"
+  resolved "https://registry.yarnpkg.com/@nuxt/kit/-/kit-4.4.6.tgz#d0de0624ee6b033be5c1f657276103a64fdf404e"
+  integrity sha512-AzsqBJeG7b3whIciyzkz4nBossEotM314KzKAptc8kH07ORBIR8Qh3QYKepo2YZwtxiDP2Y9aqzAztwpSEDHtw==
   dependencies:
     c12 "^3.3.4"
     consola "^3.4.2"
@@ -305,7 +305,6 @@
     ignore "^7.0.5"
     jiti "^2.7.0"
     klona "^2.0.6"
-    knitwork "^1.3.0"
     mlly "^1.8.2"
     ohash "^2.0.11"
     pathe "^2.0.3"
