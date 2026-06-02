@@ -318,10 +318,10 @@
     unctx "^2.5.0"
     untyped "^2.0.0"
 
-"@nuxt/schema@^3.13.0":
-  version "3.21.6"
-  resolved "https://registry.yarnpkg.com/@nuxt/schema/-/schema-3.21.6.tgz#6f7119b0a7fd940d9138260334eb79071127f7c0"
-  integrity sha512-/1m3/q2QtLQ+c+4CDrlwGtNC5nJ3KdK+MTeaRhMN+fNavqeQFdqArfXVYdzUX+ZeqOL0Pt00vJnwKm0VM1I8mQ==
+"@nuxt/schema@^4.4.6":
+  version "4.4.6"
+  resolved "https://registry.yarnpkg.com/@nuxt/schema/-/schema-4.4.6.tgz#86d14492f169f58b87f69d0aa3420b0d58e55b42"
+  integrity sha512-7FDMuD+skbFMgfF2ORYKEAKEuEFbu2oS60dln5uVtn94c8DHWCseJSrT3FUHzVUlVwyhztPU6stzB44dEoWAzw==
   dependencies:
     "@vue/shared" "^3.5.34"
     defu "^6.1.7"
