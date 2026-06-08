@@ -51,7 +51,7 @@
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.13.0",
-    "@nuxt/schema": "^3.13.0",
+    "@nuxt/schema": "^4.4.7",
     "vue": "^3.4.0"
   },
   "peerDependenciesMeta": {
@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@nuxt/kit": "^3.13.0",
-    "@nuxt/schema": "^3.13.0",
+    "@nuxt/schema": "^4.4.7",
     "@types/node": "^25.9.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "esbuild": "^0.28.0",
