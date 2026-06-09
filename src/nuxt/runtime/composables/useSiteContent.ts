@@ -17,10 +17,17 @@
 
 import { validateSite, type Site } from '../../../schema'
 import { prefixAssetPaths } from '../utils/prefixAssets'
+// Explicit imports — see the comment in `runtime/pages/slug.vue` for the full
+// rationale. tl;dr: when this composable is consumed from `node_modules`
+// (i.e. a fresh `yarn install` of the published tarball), Nuxt's unimport
+// transform skips the file and the would-be auto-imports are undefined at
+// runtime. `yarn link` masks the bug because realpath resolves outside
+// node_modules. Keep these explicit forever.
+import { useAsyncData, useRuntimeConfig } from '#imports'
 
+// `$fetch` is a real Nuxt global on globalThis (not an auto-import), so it
+// works without an explicit import — declare it for TypeScript only.
 declare const $fetch: (...args: any[]) => any
-declare const useAsyncData: (...args: any[]) => any
-declare const useRuntimeConfig: () => any
 
 export async function loadSiteContent(slug: string): Promise<Site | null> {
   // Fail fast (and informatively) if someone imports this from outside a

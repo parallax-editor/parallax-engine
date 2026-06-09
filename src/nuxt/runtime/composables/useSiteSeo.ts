@@ -10,8 +10,11 @@
  */
 
 import type { SiteSeoMap } from '../../types'
-
-declare const useRuntimeConfig: () => any
+// Explicit import — see `runtime/pages/slug.vue` for the full rationale.
+// Auto-imports don't reach files inside `node_modules`, so we ship the real
+// import even though the composable is technically Nuxt-auto-importable for
+// consumers.
+import { useRuntimeConfig } from '#imports'
 
 export interface SiteSeo {
   title: string
