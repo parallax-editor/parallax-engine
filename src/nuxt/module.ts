@@ -69,7 +69,16 @@ export default defineNuxtModule<ParallaxModuleOptions>({
     // multi-tenant when the bucket serves an index for it).
     const slugs = listSiteSlugs(contentRoot, options.preset === 'linked-home' ? options.homeSlug : undefined)
     const homePresent = options.preset === 'linked-home' && hasHomeSlug(contentRoot, options.homeSlug)
-    const seoMap = options.preset === 'linked-home' ? buildSeoMap(contentRoot, slugs) : {}
+    // Build the SEO snapshot for BOTH presets. The "private" framing of
+    // `multi-tenant` (no robots, no sitemap, no analytics) is about
+    // discoverability, NOT about social previews — the moment a multi-tenant
+    // URL is shared in iMessage / WhatsApp / email, the OG tags become
+    // visible to the recipient anyway, so leaving them off just makes the
+    // share look broken. `useSiteSeo(slug)` in the runtime `[slug].vue`
+    // reads from this map; without it, every multi-tenant page's `<title>`
+    // collapses to the raw slug and `<meta og:image>` is unset (the bug the
+    // 0.2.0 release shipped with).
+    const seoMap = buildSeoMap(contentRoot, slugs)
 
     // ── runtimeConfig ──────────────────────────────────────────────────────
     // What the runtime composables / pages need at request time. Lives under
@@ -124,6 +133,17 @@ export default defineNuxtModule<ParallaxModuleOptions>({
     nuxt.options.nitro.prerender.routes = Array.from(
       new Set([...(nuxt.options.nitro.prerender.routes || []), ...baseRoutes]),
     )
+    // multi-tenant has no `/` page (each event is its own URL, no home).
+    // Without disabling the crawler, nitro auto-seeds `/` and the prerender
+    // fails with a `[404] Page not found: /`. crawlLinks:false locks the
+    // queue to the slugs we explicitly emitted above; failOnError:false is
+    // belt-and-suspenders so a single malformed site.json doesn't break the
+    // whole build (the bad slug just doesn't ship a prerendered HTML —
+    // the bucket can still serve its raw site.json or 404 the slug).
+    if (options.preset === 'multi-tenant') {
+      nuxt.options.nitro.prerender.crawlLinks = false
+      nuxt.options.nitro.prerender.failOnError = false
+    }
     // `linked-home` writes a SPA fallback `200.html` (copy of `404.html`)
     // for slugs that didn't exist at build time — the bucket's
     // error-document config serves it, the SPA hydrates, useSiteContent

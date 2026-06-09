@@ -10,14 +10,25 @@
  * `linked-home`; `multi-tenant` repos don't get this page so `/` simply
  * 404s for them (their model is per-URL access only).
  */
-import { computed } from 'vue'
+import { ref } from 'vue'
 import { ParallaxSite, FormBlock, buildSiteHead } from '../../..'
 import { loadSiteContent } from '../composables/useSiteContent'
-import { buildCanonical } from '../composables/useSiteSeo'
 import SiteHost from '../components/SiteHost.vue'
 
-const cfg = useRuntimeConfig()?.public?.parallax || {}
+// Capture runtimeConfig values at setup time. Lazy SEO computeds below run
+// during renderSSRHead, AFTER the Nuxt context is gone — any
+// useRuntimeConfig() call in that window throws "[nuxt] instance
+// unavailable" (matches the slug.vue rationale).
+const cfg = (useRuntimeConfig().public as any).parallax || {}
 const HOME_SLUG: string = cfg.homeSlug || 'home'
+const siteUrl: string = cfg.siteUrl || ''
+const hasComponentsConfig: boolean = !!cfg.hasComponentsConfig
+
+function absUrl(path: string): string {
+  if (!siteUrl) return path
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  return siteUrl + (path.startsWith('/') ? path : `/${path}`)
+}
 
 // Home loads SERVER-side (default { server: true }) so the prerendered HTML
 // already carries the right `<link rel="stylesheet" data-parallax-font>` tags
@@ -45,17 +56,22 @@ useSeoMeta({
   description: () => site.value?.meta?.description || undefined,
   ogTitle: () => site.value?.meta?.title || 'Home',
   ogDescription: () => site.value?.meta?.description || undefined,
-  ogImage: () => site.value?.meta?.ogImage || undefined,
-  ogUrl: buildCanonical('/'),
+  // Absolute og:image — see [slug].vue for the rationale (social unfurlers
+  // need a fully-qualified URL or the preview comes through broken).
+  ogImage: () => site.value?.meta?.ogImage ? absUrl(site.value.meta.ogImage) : undefined,
+  ogUrl: absUrl('/'),
   ogType: 'website',
   twitterCard: 'summary_large_image',
+  twitterTitle: () => site.value?.meta?.title || 'Home',
+  twitterDescription: () => site.value?.meta?.description || undefined,
+  twitterImage: () => site.value?.meta?.ogImage ? absUrl(site.value.meta.ogImage) : undefined,
 })
 
 // Components registry: same lazy-load shape as `[slug].vue`. The home is
 // special only in its slug + SSR loading — everything else mirrors the slug
 // page so author behavior is consistent.
 const componentsRegistry = ref<Record<string, any>>({ FormBlock })
-if (cfg.hasComponentsConfig) {
+if (hasComponentsConfig) {
   ;(async () => {
     try {
       const mod: any = await import('#parallax-components')

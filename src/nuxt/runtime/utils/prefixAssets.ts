@@ -16,7 +16,7 @@
  */
 
 import type { Site } from '../../../schema'
-import { isRelativeAsset } from '../../isRelativeAsset'
+import { isRelativeAsset } from '../isRelativeAsset'
 
 export function prefixAssetPaths(site: Site, slug: string): Site {
   const base = `/content/${slug}/`
