@@ -11,6 +11,10 @@
  * 404s for them (their model is per-URL access only).
  */
 import { ref } from 'vue'
+// Explicit imports from '#imports' — same rationale as `slug.vue`. Auto-imports
+// don't reach files inside `node_modules`; `yarn link` masks the bug because
+// realpath resolves outside node_modules. Keep these explicit forever.
+import { useAsyncData, useRuntimeConfig, useHead, useSeoMeta } from '#imports'
 import { ParallaxSite, FormBlock, buildSiteHead } from '../../..'
 import { loadSiteContent } from '../composables/useSiteContent'
 import SiteHost from '../components/SiteHost.vue'
@@ -75,7 +79,15 @@ if (hasComponentsConfig) {
   ;(async () => {
     try {
       const mod: any = await import('#parallax-components')
-      componentsRegistry.value = { FormBlock, ...(mod?.default?.components || {}) }
+      // Unwrap `.component` from each defineParallaxConfig entry — same
+      // rationale as [slug].vue. Without this, ParallaxSite receives the
+      // `{ component, label, editableProps }` wrapper instead of a
+      // VueComponent and the custom components don't render.
+      const raw = mod?.default?.components || {}
+      const map = Object.fromEntries(
+        Object.entries(raw).map(([name, def]: [string, any]) => [name, def?.component ?? def]),
+      )
+      componentsRegistry.value = { FormBlock, ...map }
     } catch (e) {
       console.error('[parallax-engine/nuxt] componentsConfig failed to load:', e)
     }

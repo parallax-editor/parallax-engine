@@ -19,6 +19,15 @@
  * shape as a plain SPA).
  */
 import { computed, ref } from 'vue'
+// Explicit imports from '#imports' — NOT auto-imports. When this page lives
+// in node_modules (a regular `yarn install` of the published tarball), Nuxt's
+// unimport transform skips it (node_modules is excluded by default), so the
+// usual `useRoute() / useAsyncData() / useRuntimeConfig() / useHead() /
+// useSeoMeta()` magic doesn't apply and SSR explodes with `useRoute is not
+// defined`. `yarn link` happens to mask the bug because realpath resolves
+// outside node_modules and unimport DOES transform that path — so the engine
+// dev loop never saw the failure. Keep these explicit forever.
+import { useRoute, useRuntimeConfig, useHead, useSeoMeta } from '#imports'
 import { ParallaxSite, FormBlock, buildSiteHead } from '../../..'
 import { useSiteContent } from '../composables/useSiteContent'
 import type { SiteSeo } from '../composables/useSiteSeo'
@@ -65,7 +74,15 @@ if (hasComponentsConfig) {
   ;(async () => {
     try {
       const mod: any = await import('#parallax-components')
-      const map = mod?.default?.components || {}
+      // `defineParallaxConfig` wraps each entry as
+      // `{ component, label, description, editableProps }` so the editor can
+      // render its property panel. ParallaxSite's `:components` prop expects
+      // a flat `Record<string, VueComponent>` — unwrap `.component` here so
+      // we don't hand Vue an object-literal where it expects a component.
+      const raw = mod?.default?.components || {}
+      const map = Object.fromEntries(
+        Object.entries(raw).map(([name, def]: [string, any]) => [name, def?.component ?? def]),
+      )
       componentsLoaded.value = { FormBlock, ...map }
     } catch (e) {
       console.error('[parallax-engine/nuxt] componentsConfig failed to load:', e)

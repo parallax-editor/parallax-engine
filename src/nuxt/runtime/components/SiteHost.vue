@@ -20,6 +20,9 @@
 
 import { ref, shallowRef, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import type { Component } from 'vue'
+// Explicit import — see `runtime/pages/slug.vue` for the full rationale.
+// Auto-imports don't reach files inside `node_modules`.
+import { useRuntimeConfig } from '#imports'
 import { ParallaxSite } from '../../..'
 import type { Site } from '../../../schema'
 import { loadSiteContent } from '../composables/useSiteContent'
