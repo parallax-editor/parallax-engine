@@ -1975,9 +1975,9 @@ lazystream@^1.0.0:
     readable-stream "^2.0.5"
 
 lenis@^1.1.13:
-  version "1.3.23"
-  resolved "https://registry.yarnpkg.com/lenis/-/lenis-1.3.23.tgz#3473a956c829335682a6384df019d9a66457881c"
-  integrity sha512-YxYq3TJqj9sJNv0V9SkyQHejt14xwyIwgDaaMK89Uf9SxQfIszu+gTQSSphh6BWlLTNVKvvXAGkg+Zf+oFIevg==
+  version "1.3.25"
+  resolved "https://registry.yarnpkg.com/lenis/-/lenis-1.3.25.tgz#9336d9a754d8d9c454b86e9576328f5448321bd7"
+  integrity sha512-mOKxayErlaONK8fm4LN3XNd99Qu4plTpn9h9qf8wxzjGrJDzuD84FYzZ81HCd6ZsWp++VWVwOzL286Pf2s2u4A==
 
 lightningcss-android-arm64@1.32.0:
   version "1.32.0"
