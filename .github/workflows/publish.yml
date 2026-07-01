@@ -39,7 +39,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # When invoked via workflow_call from auto-tag.yml the default checkout
           # ref would be `main` (the calling workflow's ref), NOT the freshly
