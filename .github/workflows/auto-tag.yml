@@ -42,7 +42,7 @@ jobs:
       tag: ${{ steps.create.outputs.tag }}
     steps:
       - name: Checkout main (with full history)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Need history so we can diff package.json against the previous
           # commit and only tag when the version field actually changed.
