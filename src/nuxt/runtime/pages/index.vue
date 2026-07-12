@@ -10,7 +10,7 @@
  * `linked-home`; `multi-tenant` repos don't get this page so `/` simply
  * 404s for them (their model is per-URL access only).
  */
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 // Explicit imports from '#imports' — same rationale as `slug.vue`. Auto-imports
 // don't reach files inside `node_modules`; `yarn link` masks the bug because
 // realpath resolves outside node_modules. Keep these explicit forever.
@@ -38,10 +38,24 @@ function absUrl(path: string): string {
 // already carries the right `<link rel="stylesheet" data-parallax-font>` tags
 // — first paint shows the configured fonts. The engine body still mounts on
 // the client.
-const { data: site } = await useAsyncData(
+const { data: site, refresh } = await useAsyncData(
   `parallax-home-${HOME_SLUG}`,
   () => loadSiteContent(HOME_SLUG),
 )
+
+// STALE-HOME FIX: the prerendered payload embeds the home's site.json AS OF
+// BUILD TIME, and Nuxt hydrates from that payload without ever re-fetching.
+// But the home slug's content can be republished to the static host WITHOUT
+// rebuilding the shell (the same runtime-publish flow `/<slug>` pages already
+// support via their client-side fetch). Refresh once after hydration: the
+// client branch of `loadSiteContent` $fetches `/content/<home>/site.json`
+// fresh, so a newer publish replaces the embedded snapshot within a moment
+// of first paint. SSR fonts/SEO keep working exactly as before (they come
+// from the server-rendered pass); when nothing changed this is a cheap
+// no-cache JSON fetch that resolves to identical data.
+onMounted(() => {
+  refresh()
+})
 
 useHead(() => {
   const head: any = { htmlAttrs: {} }
