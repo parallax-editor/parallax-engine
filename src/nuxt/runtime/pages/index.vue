@@ -57,9 +57,19 @@ const { data: site } = await useAsyncData(
 // client and the assignment swaps the tree in place. SSR fonts/SEO keep
 // working exactly as before (they come from the server-rendered pass); when
 // nothing changed, the swap is a no-op re-render of identical data.
+// `contentRev` keys <SiteHost> below: it consumes `initial-site` ONCE at
+// mount, so swapping `site.value` alone re-renders NOTHING (the stale build
+// snapshot stayed on screen even though the fresh JSON arrived — verified in
+// production). Bumping the key remounts SiteHost with the fresh tree. Only
+// bumped when the payload actually differs, so the common no-change case
+// never flashes.
+const contentRev = ref(0)
 onMounted(async () => {
   const fresh = await loadSiteContent(HOME_SLUG)
-  if (fresh) site.value = fresh
+  if (fresh && JSON.stringify(fresh) !== JSON.stringify(site.value)) {
+    site.value = fresh
+    contentRev.value++
+  }
 })
 
 useHead(() => {
@@ -117,6 +127,7 @@ if (hasComponentsConfig) {
 <template>
   <SiteHost
     v-if="site"
+    :key="contentRev"
     :initial-slug="HOME_SLUG"
     :initial-site="site"
     :components="componentsRegistry"
