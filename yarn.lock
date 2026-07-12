@@ -342,12 +342,12 @@
     unctx "^2.5.0"
     untyped "^2.0.0"
 
-"@nuxt/schema@^3.13.0":
-  version "3.21.6"
-  resolved "https://registry.yarnpkg.com/@nuxt/schema/-/schema-3.21.6.tgz#6f7119b0a7fd940d9138260334eb79071127f7c0"
-  integrity sha512-/1m3/q2QtLQ+c+4CDrlwGtNC5nJ3KdK+MTeaRhMN+fNavqeQFdqArfXVYdzUX+ZeqOL0Pt00vJnwKm0VM1I8mQ==
+"@nuxt/schema@^4.4.8":
+  version "4.4.8"
+  resolved "https://registry.yarnpkg.com/@nuxt/schema/-/schema-4.4.8.tgz#023bcca17b02add3cc2fd1e2a666090999173669"
+  integrity sha512-igfWuMF0x0Pmx/XwhPwH/bcXgbuwNnjUjqxCAsY6VQhmGKo0e9soJq3Q0ohj+rBkBfX6o2ysTP1/t2M82aK4qA==
   dependencies:
-    "@vue/shared" "^3.5.34"
+    "@vue/shared" "^3.5.35"
     defu "^6.1.7"
     pathe "^2.0.3"
     pkg-types "^2.3.1"
@@ -1018,7 +1018,7 @@
     "@vue/compiler-ssr" "3.5.39"
     "@vue/shared" "3.5.39"
 
-"@vue/shared@3.5.39", "@vue/shared@^3.5.0", "@vue/shared@^3.5.34":
+"@vue/shared@3.5.39", "@vue/shared@^3.5.0", "@vue/shared@^3.5.35":
   version "3.5.39"
   resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.5.39.tgz#694bdae9d47381c2fcfedc6d5274f2450068c1ec"
   integrity sha512-l1rrBtBfTnmxvtsvdQDXltUUy8S1Y+ZaqdfUzmAnJkTd8Z8rv5v/ytW+TKiqEOWyHPoqtPlNFSs0lhRmYVSHVA==
