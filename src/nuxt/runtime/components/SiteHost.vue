@@ -18,7 +18,7 @@
  * `[slug].vue` because they have no cross-site navigation.
  */
 
-import { ref, shallowRef, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import type { Component } from 'vue'
 // Explicit import — see `runtime/pages/slug.vue` for the full rationale.
 // Auto-imports don't reach files inside `node_modules`.
@@ -40,6 +40,22 @@ const current = shallowRef<{ slug: string; site: Site } | null>(
   props.initialSite ? { slug: props.initialSlug, site: props.initialSite } : null,
 )
 const notFound = ref(false)
+
+// STALE-HOME (v4): the parent page re-fetches the home's site.json after
+// hydration and pushes the fresh tree through this prop. Patch the SAME
+// mounted instance reactively — Vue diffs and repaints only what changed, so
+// there is no unmount/remount "jump" (no scroll reset, no restarted
+// animations). Same patch-in-place model the editor's live preview uses.
+// Only applies while we're still ON the initial slug — after an in-engine
+// navigation, `current` belongs to another site and the update is stale.
+watch(
+  () => props.initialSite,
+  (fresh) => {
+    if (!fresh) return
+    if (current.value && current.value.slug !== props.initialSlug) return
+    current.value = { slug: props.initialSlug, site: fresh }
+  },
+)
 
 // Cross-fade of the outgoing site.
 const fadeSite = shallowRef<Site | null>(null)

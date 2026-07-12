@@ -17,6 +17,7 @@ import { ref, onMounted } from 'vue'
 import { useAsyncData, useRuntimeConfig, useHead, useSeoMeta } from '#imports'
 import { ParallaxSite, FormBlock, buildSiteHead } from '../../..'
 import { loadSiteContent } from '../composables/useSiteContent'
+import type { Site } from '../../../schema'
 import SiteHost from '../components/SiteHost.vue'
 
 // Capture runtimeConfig values at setup time. Lazy SEO computeds below run
@@ -57,19 +58,19 @@ const { data: site } = await useAsyncData(
 // client and the assignment swaps the tree in place. SSR fonts/SEO keep
 // working exactly as before (they come from the server-rendered pass); when
 // nothing changed, the swap is a no-op re-render of identical data.
-// `contentRev` keys <SiteHost> below: it consumes `initial-site` ONCE at
-// mount, so swapping `site.value` alone re-renders NOTHING (the stale build
-// snapshot stayed on screen even though the fresh JSON arrived — verified in
-// production). Bumping the key remounts SiteHost with the fresh tree. Only
-// bumped when the payload actually differs, so the common no-change case
-// never flashes.
-const contentRev = ref(0)
+// STALE-HOME (v5, definitive): the body NEVER paints from the build
+// snapshot. The server-loaded `site` above feeds ONLY the <head> (SSR fonts,
+// SEO/OG tags — what social unfurlers and first-paint typography need). The
+// engine body mounts exclusively from `clientSite`: fetched fresh on the
+// client, so the FIRST paint of the site is already the latest published
+// content — no old→new repaint of any kind (a large republish would
+// otherwise visibly jump mid-hydration). While it loads, the page shows the
+// same neutral spinner the /<slug> routes always had. If the fetch fails
+// (offline), fall back to the build snapshot rather than a blank page.
+const clientSite = ref<Site | null>(null)
 onMounted(async () => {
   const fresh = await loadSiteContent(HOME_SLUG)
-  if (fresh && JSON.stringify(fresh) !== JSON.stringify(site.value)) {
-    site.value = fresh
-    contentRev.value++
-  }
+  clientSite.value = fresh || site.value || null
 })
 
 useHead(() => {
@@ -126,10 +127,29 @@ if (hasComponentsConfig) {
 
 <template>
   <SiteHost
-    v-if="site"
-    :key="contentRev"
+    v-if="clientSite"
     :initial-slug="HOME_SLUG"
-    :initial-site="site"
+    :initial-site="clientSite"
     :components="componentsRegistry"
   />
+  <!-- SSR/prerender + first client frames: neutral loader, NOT the build
+       snapshot — the site body paints exactly once, with the final data. -->
+  <div v-else class="parallax-page-loading" aria-label="Loading" role="status">
+    <span class="parallax-page-spinner" />
+  </div>
 </template>
+
+<style scoped>
+/* Same neutral loader as slug.vue — shown during SSR/prerender and the first
+   client frames, until the fresh site.json resolves. */
+.parallax-page-loading {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; background: #fff;
+}
+.parallax-page-spinner {
+  width: 34px; height: 34px;
+  border: 3px solid rgba(0, 0, 0, 0.12); border-top-color: #444;
+  border-radius: 50%; animation: parallax-page-spin 0.8s linear infinite;
+}
+@keyframes parallax-page-spin { to { transform: rotate(360deg); } }
+</style>
