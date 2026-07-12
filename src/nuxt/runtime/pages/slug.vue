@@ -27,7 +27,7 @@ import { computed, ref } from 'vue'
 // defined`. `yarn link` happens to mask the bug because realpath resolves
 // outside node_modules and unimport DOES transform that path — so the engine
 // dev loop never saw the failure. Keep these explicit forever.
-import { useRoute, useRuntimeConfig, useHead, useSeoMeta } from '#imports'
+import { useRoute, useRuntimeConfig, useHead, useSeoMeta, navigateTo } from '#imports'
 import { ParallaxSite, FormBlock, buildSiteHead } from '../../..'
 import { useSiteContent } from '../composables/useSiteContent'
 import type { SiteSeo } from '../composables/useSiteSeo'
@@ -59,6 +59,17 @@ function absUrl(path: string): string {
 }
 
 const seo = computed(() => lookupSeo(slug.value))
+
+// `link.site` in multi-tenant: the bare <ParallaxSite> emits `navigate(slug)`
+// on click but (unlike linked-home, where <SiteHost> owns it for the in-engine
+// cross-fade) nothing was listening — the click was a silent no-op while
+// `link.url` worked fine. Handle it as a REGULAR route change to `/<slug>`:
+// no cross-fade, which keeps the per-URL model intact (each site is its own
+// page; nothing lists or preloads the others).
+function onSiteNavigate(target: string) {
+  if (!target) return
+  navigateTo(`/${target}`)
+}
 
 // Body: client-only fetch. The linked-home `/` route fetches its site
 // server-side from index.vue.
@@ -134,6 +145,7 @@ useSeoMeta({
     :components="componentsResolved"
     :asset-base="`/content/${slug}/`"
     mode="prod"
+    @navigate="onSiteNavigate"
   />
   <!-- Loading state: the body is fetched client-side (server:false on
        useSiteContent), so during SSR + initial paint `site` is null. A
