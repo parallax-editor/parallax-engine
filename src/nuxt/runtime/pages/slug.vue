@@ -18,7 +18,7 @@
  * loaded server-side, so the engine injects them on mount instead (same
  * shape as a plain SPA).
  */
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 // Explicit imports from '#imports' — NOT auto-imports. When this page lives
 // in node_modules (a regular `yarn install` of the published tarball), Nuxt's
 // unimport transform skips it (node_modules is excluded by default), so the
@@ -70,6 +70,19 @@ function onSiteNavigate(target: string) {
   if (!target) return
   navigateTo(`/${target}`)
 }
+
+// bfcache: al volver con Atrás/Adelante desde otra página completa, el
+// navegador restaura la pestaña congelada con su scroll. Un sitio siempre
+// arranca arriba. Solo multi-tenant: en linked-home <SiteHost> ya lo maneja.
+function onPageShow(e: PageTransitionEvent) {
+  if (e.persisted) window.scrollTo(0, 0)
+}
+onMounted(() => {
+  if (!isLinkedHome) window.addEventListener('pageshow', onPageShow)
+})
+onBeforeUnmount(() => {
+  if (!isLinkedHome) window.removeEventListener('pageshow', onPageShow)
+})
 
 // Body: client-only fetch. The linked-home `/` route fetches its site
 // server-side from index.vue.

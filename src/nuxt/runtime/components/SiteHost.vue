@@ -35,6 +35,9 @@ const props = defineProps<{
 
 const cfg = useRuntimeConfig()?.public?.parallax || {}
 const HOME_SLUG: string = cfg.homeSlug || 'home'
+// Subpath deploys (GitHub Pages, S3 bajo prefijo): las URLs que empujamos a
+// history y las que leemos en popstate viven BAJO app.baseURL, no en la raíz.
+const APP_BASE: string = ((useRuntimeConfig()?.app as any)?.baseURL || '/').replace(/\/*$/, '/')
 
 const current = shallowRef<{ slug: string; site: Site } | null>(
   props.initialSite ? { slug: props.initialSlug, site: props.initialSite } : null,
@@ -63,11 +66,27 @@ const fadeOut = ref(false)
 const txDuration = ref(600)
 
 function slugToUrl(slug: string): string {
-  return slug === HOME_SLUG ? '/' : `/${slug}`
+  return slug === HOME_SLUG ? APP_BASE : APP_BASE + slug
 }
 function urlToSlug(path: string): string {
-  if (!path || path === '/') return HOME_SLUG
-  return path.replace(/^\/+|\/+$/g, '').split('/')[0] || HOME_SLUG
+  let p = path || '/'
+  if (APP_BASE !== '/' && p.startsWith(APP_BASE)) p = '/' + p.slice(APP_BASE.length)
+  if (!p || p === '/') return HOME_SLUG
+  return p.replace(/^\/+|\/+$/g, '').split('/')[0] || HOME_SLUG
+}
+
+// Reset de scroll ROBUSTO. Un `scrollTo(0,0)` único pierde contra cualquier
+// re-scroll asíncrono posterior (smooth-scroll libs, restauración del
+// navegador, inercia del trackpad): el mundo destino aparecía abierto por la
+// mitad, heredando la posición del mundo anterior. Se re-afirma en los dos
+// frames siguientes para ganar la carrera.
+function resetScroll() {
+  if (typeof window === 'undefined') return
+  window.scrollTo(0, 0)
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0)
+    requestAnimationFrame(() => window.scrollTo(0, 0))
+  })
 }
 
 async function go(slug: string, opts: { push?: boolean } = {}) {
@@ -88,7 +107,7 @@ async function go(slug: string, opts: { push?: boolean } = {}) {
   const transitionType = sourceTransition?.out
 
   current.value = { slug, site }
-  if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  resetScroll()
   if (push) {
     try { history.pushState({ slug }, '', slugToUrl(slug)) } catch { /* no-op */ }
   }
@@ -108,12 +127,20 @@ async function go(slug: string, opts: { push?: boolean } = {}) {
 
 function onFadeEnd() { fadeSite.value = null; fadeOut.value = false }
 function onPop() { go(urlToSlug(window.location.pathname), { push: false }) }
+// bfcache: al volver con Atrás/Adelante desde otra página completa, el
+// navegador restaura la pestaña congelada tal cual estaba — scroll incluido.
+// Un mundo siempre arranca arriba.
+function onPageShow(e: PageTransitionEvent) { if (e.persisted) resetScroll() }
 
 onMounted(() => {
   window.addEventListener('popstate', onPop)
+  window.addEventListener('pageshow', onPageShow)
   if (!current.value) go(props.initialSlug, { push: false })
 })
-onBeforeUnmount(() => window.removeEventListener('popstate', onPop))
+onBeforeUnmount(() => {
+  window.removeEventListener('popstate', onPop)
+  window.removeEventListener('pageshow', onPageShow)
+})
 
 defineExpose({ go })
 </script>
