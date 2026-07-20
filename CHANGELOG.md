@@ -9,6 +9,21 @@ release notes auto-generated from commit history on GitHub.
 
 ## [Unreleased]
 
+### Fixed
+- Nuxt runtime: robust scroll reset on in-engine `link.site` navigation —
+  `<SiteHost>` re-asserts `scrollTo(0, 0)` across the next two animation
+  frames, so the incoming site no longer inherits the outgoing site's
+  scroll offset when an async re-scroll (smooth-scroll libs, browser
+  restoration, trackpad inertia) landed after the single reset. Previously
+  shipped as a temporary consumer-side patch in demo-atlas.
+- Nuxt runtime: bfcache guard — returning to a site via the browser's
+  Back/Forward across full page loads restored the frozen tab scrolled;
+  both hosts (`<SiteHost>` and the bare multi-tenant page) now listen for
+  `pageshow` with `persisted` and reset to the top.
+- Nuxt runtime: `<SiteHost>` history URLs (`pushState` / `popstate`) now
+  respect `app.baseURL`, fixing in-engine navigation on subpath deploys
+  (e.g. GitHub Pages project sites). Also previously a demo-side patch.
+
 ### Added
 - New `fit` prop on `<ParallaxSite>` (`'viewport'` | `'container'`,
   default `'viewport'`). With `fit="container"` the engine fills its host
