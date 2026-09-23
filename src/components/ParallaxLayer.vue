@@ -34,6 +34,29 @@ const GYRO_FACTOR = 20
 
 const shouldRender = computed(() => props.layerIndex < quality.value.maxLayers)
 
+// Only GPU-promote layers that ACTUALLY move. A permanent `will-change:transform`
+// on every layer forces Chrome to keep a full-viewport texture per layer forever;
+// on a Retina display a scene with ~20 full-bleed layers blows past the tab's GPU
+// tile budget → the compositor evicts + re-rasterizes textures → visible flicker
+// ("layers appearing/disappearing"), reproducible only under real GPU pressure
+// (production, high-DPR, many-layer scenes). Static layers never transform, so
+// they gain nothing from promotion and only cost VRAM. Promote just the dynamic
+// ones; Chrome composites the rest on demand and frees them when idle. Mirrors
+// the same "don't keep will-change around" reasoning in TextElement.
+const isDynamic = computed(() => {
+  if (reducedMotion.value) return false
+  const depth = props.layer.depth ?? 0
+  const modes = props.layer.parallaxMode ?? []
+  const moves =
+    depth !== 0 &&
+    (modes.includes('scroll-vertical') ||
+      modes.includes('scroll-horizontal') ||
+      modes.includes('mouse') ||
+      modes.includes('gyroscope'))
+  const tilts = modes.includes('tilt') && !!props.layer.perspective3d
+  return moves || tilts
+})
+
 const layerStyle = computed(() => {
   // Absolutely fill the wrapper (which itself fills the positioned section).
   // Using inset:0 instead of width/height:100% avoids relying on a
@@ -101,6 +124,10 @@ const layerStyle = computed(() => {
   if (props.layer.opacity < 1) style.opacity = props.layer.opacity
   if (props.layer.blendMode) style.mixBlendMode = props.layer.blendMode
 
+  // Promote only moving layers (see isDynamic). Explicit 'auto' so a static
+  // layer never inherits a stray promotion.
+  style.willChange = isDynamic.value ? 'transform' : 'auto'
+
   return style
 })
 
@@ -153,7 +180,8 @@ const wrapperStyle = computed(() => {
 .parallax-layer {
   position: absolute;
   inset: 0;
-  will-change: transform;
+  /* will-change is applied inline per-layer (only for layers that actually
+     move); a blanket promotion here blows the GPU texture budget on Retina. */
   pointer-events: none;
 }
 </style>
