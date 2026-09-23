@@ -55,6 +55,17 @@ jobs:
           registry-url: https://registry.npmjs.org
       # npm 11.5.1+ is required for OIDC Trusted Publishing.
       - run: npm install -g npm@latest
+      # The TAG is the source of truth for the released version (release.yml
+      # cuts it from conventional commits; nothing bumps package.json in the
+      # repo — this org blocks bot PRs and main is protection-locked). Set the
+      # package version to the tag here, in the ephemeral checkout only, so
+      # `npm publish` ships the right number. No git commit, no push back.
+      # Skipped on a bare manual tag push where no `tag` input is supplied.
+      - name: Set package version from tag
+        if: inputs.tag != ''
+        run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+        env:
+          TAG: ${{ inputs.tag }}
       - run: yarn install --frozen-lockfile
       - run: yarn test
       - run: yarn build
