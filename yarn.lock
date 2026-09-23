@@ -344,15 +344,16 @@
     verkit "^0.3.1"
 
 "@nuxt/schema@^4.4.8":
-  version "4.4.8"
-  resolved "https://registry.yarnpkg.com/@nuxt/schema/-/schema-4.4.8.tgz#023bcca17b02add3cc2fd1e2a666090999173669"
-  integrity sha512-igfWuMF0x0Pmx/XwhPwH/bcXgbuwNnjUjqxCAsY6VQhmGKo0e9soJq3Q0ohj+rBkBfX6o2ysTP1/t2M82aK4qA==
+  version "4.5.2"
+  resolved "https://registry.yarnpkg.com/@nuxt/schema/-/schema-4.5.2.tgz#fe2591ff13c9e9a5152a59d7ea62c91d8a9c5df0"
+  integrity sha512-h9g1kt9O2iU9nX6HDFu9gvwtpn+8oSJX0RSTWRBnEx/Pkz+WlOHtjuS0SbkTAXw5aT1+H1GysWVwNTjJfBY/0w==
   dependencies:
-    "@vue/shared" "^3.5.35"
+    "@vue/shared" "^3.5.40"
     defu "^6.1.7"
+    nostics "^1.2.0"
     pathe "^2.0.3"
     pkg-types "^2.3.1"
-    std-env "^4.1.0"
+    std-env "^4.2.0"
 
 "@oxc-project/types@=0.137.0":
   version "0.137.0"
@@ -1020,7 +1021,7 @@
     "@vue/runtime-dom" "3.5.43"
     "@vue/shared" "3.5.43"
 
-"@vue/shared@3.5.43", "@vue/shared@^3.5.0", "@vue/shared@^3.5.35":
+"@vue/shared@3.5.43", "@vue/shared@^3.5.0", "@vue/shared@^3.5.40":
   version "3.5.43"
   resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.5.43.tgz#22c11ecf1304bfc6f6b745f3b4ba54c410074338"
   integrity sha512-uksS7YGMR5NZyr4JNq0Rp+QyLns0ueaz20KwzIPW9R0LH1Vnt4E+XUM29PNseEbf1www2gOuhuDi5AKOIXag9Q==
@@ -2841,10 +2842,10 @@ statuses@^2.0.2, statuses@~2.0.2:
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-2.0.2.tgz#8f75eecef765b5e1cfcdc080da59409ed424e382"
   integrity sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==
 
-std-env@^4.0.0-rc.1, std-env@^4.1.0:
-  version "4.1.0"
-  resolved "https://registry.yarnpkg.com/std-env/-/std-env-4.1.0.tgz#45899abc590d86d682e87f0acd1033a75084cd3f"
-  integrity sha512-Rq7ybcX2RuC55r9oaPVEW7/xu3tj8u4GeBYHBWCychFtzMIr86A7e3PPEBPT37sHStKX3+TiX/Fr/ACmJLVlLQ==
+std-env@^4.0.0-rc.1, std-env@^4.1.0, std-env@^4.2.0:
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/std-env/-/std-env-4.2.0.tgz#8ebe0ec60485668ab47227b312f4254cdf80c9d3"
+  integrity sha512-oCUKSupKTHX53EyjDtuZQ64pjLJ6yYCtpmEw0goYxtjG9KpbRe8KAsl2tBUGU9DyMcJ0RwJ8GqJAFzMXcXW1Rw==
 
 streamx@^2.12.5, streamx@^2.15.0, streamx@^2.25.0:
   version "2.26.0"
