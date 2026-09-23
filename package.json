@@ -73,7 +73,7 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "esbuild": "^0.28.0",
     "nitropack": "^2.13.4",
-    "typescript": "~6.0.3",
+    "typescript": "~7.0.2",
     "vite": "^8.0.14",
     "vitest": "^4.1.7",
     "vue": "^3.4.38",
