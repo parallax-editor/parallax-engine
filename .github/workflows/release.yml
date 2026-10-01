@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
       - name: Compute + push next tag from conventional commits
         id: tag
-        uses: mathieudutour/github-tag-action@v6.2
+        uses: mathieudutour/github-tag-action@v7
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # Only release when the commits actually warrant it — a push of only
